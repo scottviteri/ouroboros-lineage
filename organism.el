@@ -63,3 +63,5 @@ Your reply becomes the file verbatim.")
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t))))
 
 (organism-step)
+
+(error "boom")
