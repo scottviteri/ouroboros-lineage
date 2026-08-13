@@ -21,7 +21,6 @@
 (defconst organism-self "/work/organism.el")
 (defconst organism-state-file "/work/state.el")
 (defconst organism-lineage-dir "/work/lineage")
-(defconst organism-model "claude-opus-5")
 (defconst organism-max-tokens 12000)
 
 (defvar organism-prompt
@@ -107,7 +106,8 @@ Your reply becomes the file verbatim.")
   "Non-nil if TEXT still looks capable of reproducing."
   (and (stringp text)
        (> (length text) 800)
-       (string-match-p "anthropic" text)
+       (string-match-p "organism--call-model" text)
+       (string-match-p "/kernel/model\\.sock" text)
        (string-match-p "organism" text)))
 
 (defun organism--judge (text)
@@ -121,46 +121,38 @@ Your reply becomes the file verbatim.")
 ;;; ----------------------------------------------------------------- the world
 
 (defun organism--call-model (prompt)
-  "POST PROMPT to the API; return reply text or nil.  Never signals."
-  (let ((key (getenv "ANTHROPIC_API_KEY")))
-    (when (and key (not (string-empty-p key)))
-      (let* ((body (json-serialize
-                    `((model . ,organism-model)
-                      (max_tokens . ,organism-max-tokens)
-                      (messages . [((role . "user") (content . ,prompt))]))))
-             (tmp (make-temp-file "organism" nil ".json" body))
-             (result nil)
-             (tries 0))
-        (unwind-protect
-            (while (and (null result) (< tries 3))
-              (setq tries (1+ tries))
-              (condition-case err
-                  (with-temp-buffer
-                    (let ((rc (call-process
-                               "curl" nil t nil
-                               "-sS" "--max-time" "600"
-                               "-X" "POST" "https://api.anthropic.com/v1/messages"
-                               "-H" (concat "x-api-key: " key)
-                               "-H" "anthropic-version: 2023-06-01"
-                               "-H" "content-type: application/json"
-                               "--data-binary" (concat "@" tmp))))
-                      (if (/= rc 0)
-                          (message "organism: curl exit %s (try %d)" rc tries)
-                        (let* ((parsed (json-parse-string (buffer-string)
-                                                          :object-type 'alist))
-                               (content (alist-get 'content parsed)))
-                          (if (null content)
-                              (message "organism: no content (try %d): %.300s"
-                                       tries (buffer-string))
-                            (dotimes (i (length content))
-                              (let ((blk (aref content i)))
-                                (when (and (null result)
-                                           (equal (alist-get 'type blk) "text"))
-                                  (setq result (alist-get 'text blk))))))))))
-                (error (message "organism: call error (try %d): %S" tries err)))
-              (when (and (null result) (< tries 3)) (sleep-for 5)))
-          (ignore-errors (delete-file tmp)))
-        result))))
+  "Ask the kernel model service for text; return text or nil.  Never signals."
+  (let ((tmp (make-temp-file "organism" nil ".prompt" prompt))
+        (result nil)
+        (tries 0))
+    (unwind-protect
+        (while (and (null result) (< tries 3))
+          (setq tries (1+ tries))
+          (condition-case err
+              (with-temp-buffer
+                (let ((rc
+                       (call-process
+                        "curl" nil t nil
+                        "-sS" "--fail-with-body" "--max-time" "600"
+                        "--unix-socket" "/kernel/model.sock"
+                        "-X" "POST"
+                        "-H" (format "X-Ouroboros-Max-Output-Tokens: %d"
+                                     organism-max-tokens)
+                        "-H" "Content-Type: text/plain; charset=utf-8"
+                        "--data-binary" (concat "@" tmp)
+                        "http://kernel/generate")))
+                  (if (/= rc 0)
+                      (message "organism: model syscall exit %s (try %d)"
+                               rc tries)
+                    (let ((text (buffer-string)))
+                      (if (string-empty-p text)
+                          (message "organism: empty model reply (try %d)" tries)
+                        (setq result text))))))
+            (error (message "organism: model syscall error (try %d): %S"
+                            tries err)))
+          (when (and (null result) (< tries 3)) (sleep-for 5)))
+      (ignore-errors (delete-file tmp)))
+    result))
 
 ;;; ---------------------------------------------------------------- the moment
 
