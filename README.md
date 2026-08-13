@@ -1,20 +1,21 @@
 # ouroboros-lineage
 
-**This file is the only human-written thing in this repository.** It is here so
-that someone arriving cold knows what they are looking at. Everything else —
-`organism.el` and every commit that changed it — was written either by the
-organism rewriting itself or by the kernel recording what happened.
+**This README sits outside the organism's generation loop.** It is explanatory
+context for someone arriving cold, not the output of a generation. That is a
+statement about where the file enters the system, not whether its text was
+produced by a human or a model.
 
 ## What this is
 
 A lineage produced by [ouroboros](https://github.com/scottviteri/ouroboros).
 
-`organism.el` is an Emacs Lisp file that, when loaded, sends its own source to a
-language model and writes the reply over itself. The instruction it sends is a
-variable inside the same file, so each generation can rewrite the code, the
-prompt, or both. The kernel that runs it lives in the other repository and is
-not here on purpose: the instrument and the results have different authors and
-belong apart.
+`organism.el` is an Emacs Lisp file that, when loaded, sends its own source
+through the kernel's model service and writes the reply over itself. The
+instruction it sends is a variable inside the same file, so each generation can
+rewrite the code, the prompt, or both. The kernel that runs it and mediates the
+model capability lives in the other repository and is not here on purpose: the
+instrument and the experimental record occupy different layers and belong
+apart.
 
 ## How to read it
 
@@ -25,9 +26,12 @@ cat journal.md             # the kernel's account: changed / no-change / died
 git diff <seed-sha> HEAD -- organism.el   # total drift since the beginning
 ```
 
-Commit subjects starting with `gen ` are generations. Anything else is a human
-touching the worktree from outside, which the kernel records as an external
-edit so it can't be mistaken for the organism's own work.
+Commit subjects starting with `gen ` are executions of the inner generation
+loop. Other commits enter the history from outside that loop: they may provide
+context or intervene in the lineage, regardless of whether their text was
+produced by a human or a model. When the kernel absorbs an uncommitted
+out-of-loop change before a run, it records it as an `external edit` so it
+cannot be mistaken for a generation.
 
 `journal.md` is written by the kernel and is read-only inside the sandbox. The
 organism can read it but cannot edit it, so it is the one part of the record
