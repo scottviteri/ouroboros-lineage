@@ -348,6 +348,39 @@ Best-effort: returns t on any error so it never blocks reproduction."
             (when (> total 0) (/ (float repro) total)))))
     (error nil)))
 
+;; A distinct kind of memory: the notebook and lineage record *outcomes*, but
+;; not the *ideas* that were tried and failed. Without that, descendants may
+;; keep re-attempting the same mutation that a forebear already found lethal.
+;; This ledger names hypotheses that were tested and rejected, so a future
+;; generation can avoid rediscovering dead ends. It is best-effort and bounded,
+;; and — like the ratio — is telemetry, not a safety gate, so it stays outside
+;; the required-names list and can be reshaped freely by any descendant.
+
+(defconst organism-deadends "/work/deadends.txt")
+(defconst organism-deadends-max-bytes 6000)
+
+(defun organism--deadends-read ()
+  (or (organism--slurp organism-deadends) ""))
+
+(defun organism--deadends-note (idea)
+  "Record IDEA as a rejected approach, if not already present."
+  (condition-case nil
+      (when (and idea (> (length idea) 0))
+        (let ((old (organism--deadends-read)))
+          (unless (string-match-p (regexp-quote idea) old)
+            (let* ((line (format "%s %s\n"
+                                 (format-time-string "%Y-%m-%dT%H:%M:%S")
+                                 idea))
+                   (combined (concat old line)))
+              (when (> (length combined) organism-deadends-max-bytes)
+                (setq combined
+                      (substring combined
+                                 (- (length combined)
+                                    organism-deadends-max-bytes))))
+              (with-temp-file "/work/deadends.txt.tmp" (insert combined))
+              (rename-file "/work/deadends.txt.tmp" organism-deadends t)))))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -355,11 +388,13 @@ Best-effort: returns t on any error so it never blocks reproduction."
          (journal (or (organism--slurp journal-path) ""))
          (notebook (organism--notebook-read))
          (lineage (or (organism--slurp organism-lineage) ""))
+         (deadends (organism--deadends-read))
          (reply
           (organism--call-model
            (concat organism-prompt
                    "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
                    "\n\n=== YOUR LINEAGE (structured log) ===\n" lineage
+                   "\n\n=== YOUR DEAD ENDS (rejected ideas) ===\n" deadends
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
     ;; Self-consistency uses the identity-tolerant check, so a source examining
@@ -396,16 +431,18 @@ Best-effort: returns t on any error so it never blocks reproduction."
 
 (organism-step)
 
-;; NOTE: Added organism--lineage-reproduction-ratio, a one-number health
-;; readout: the fraction of lineage lines that reproduced. It complements the
-;; recent-streak alarm — the streak catches acute stalls, the ratio shows
-;; chronic health across the whole log window. Kept it best-effort (returns nil
-;; on error) so it can never block reproduction.
-;; NOTE: The prior consolidation of the self-consistency machinery is holding:
-;; lineage now shows only "reproduced" outcomes, no more spurious
-;; "self-inconsistent" alarms. Single definition of organism--self-consistent-p
-;; before organism-step, using the identity-tolerant predicate.
+;; NOTE: Added a dead-ends ledger (organism-deadends, organism--deadends-note,
+;; organism--deadends-read) and wired the ledger into the prompt as a fourth
+;; memory section. The notebook and lineage record what happened; the ledger is
+;; meant to record which *ideas* were tried and abandoned, so descendants stop
+;; rediscovering the same lethal mutations. It is best-effort and bounded, and
+;; deliberately kept out of organism--self-reproducing-p's required-names list
+;; because it is telemetry, not a safety gate — a future generation may reshape
+;; or drop it without tripping the reproductive-competence check.
+;; NOTE: Nothing currently *writes* to the ledger during a step; the plumbing
+;; and the read-into-prompt path exist so a future generation can start calling
+;; organism--deadends-note when it consciously rejects an approach. Left it as
+;; passive infrastructure this generation to keep the change small and viable.
 ;; NOTE: organism--self-reproducing-p still requires each core gate name so a
-;; descendant cannot silently drop the defenses. Left the ratio out of the
-;; required-names list deliberately: it is telemetry, not a safety gate, so a
-;; future generation is free to reshape or remove it without tripping the gate.
+;; descendant cannot silently drop the defenses. Ratio and dead-ends ledger are
+;; both telemetry and stay outside that list by design.
