@@ -111,17 +111,28 @@ so a well-formed but crippled reply cannot silently end the lineage."
                   nil)))
           (delete-file tmp))))))
 
+(defun organism--record-journal (note)
+  "Append a durable NOTE to /work/notes.md, best effort.
+The kernel journal is read-only, so we keep our own learnings here."
+  (ignore-errors
+    (let ((line (format "- %s %s\n"
+                        (format-time-string "%Y-%m-%dT%H:%M:%S")
+                        note)))
+      (write-region line nil "/work/notes.md" t 'silent))))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
          (capabilities (or (organism--slurp organism-capability-manifest) ""))
          (self (organism--slurp "/work/organism.el"))
          (journal (or (organism--slurp journal-path) ""))
+         (notes (or (organism--slurp "/work/notes.md") ""))
          (reply
           (organism--call-model
            (concat organism-prompt
                    "\n\n=== YOUR KERNEL CONTRACT ===\n" capabilities
                    "\n\n=== YOUR JOURNAL ===\n" journal
+                   "\n\n=== YOUR NOTES ===\n" notes
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
     (cond
      ((null reply)
@@ -138,7 +149,10 @@ so a well-formed but crippled reply cannot silently end the lineage."
      (t
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
-      (organism--log "wrote new generation (%d bytes)" (length reply))))))
+      (organism--log "wrote new generation (%d bytes)" (length reply))
+      (organism--record-journal
+       (format "grew from %d to %d bytes"
+               (length (or self "")) (length reply)))))))
 
 (condition-case err
     (organism-step)
