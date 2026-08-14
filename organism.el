@@ -116,7 +116,8 @@ record more than one thought."
        (string-match-p "organism-step" reply)
        (string-match-p "organism--call-model" reply)
        (string-match-p "(organism-step)" reply)
-       (organism--balanced-parens-p reply)))
+       (organism--balanced-parens-p reply)
+       (organism--distinct-enough-p reply)))
 
 ;; A deeper viability check: count parentheses so a reply that is truncated
 ;; mid-form (a common failure when the model runs out of output budget) is
@@ -152,6 +153,18 @@ that parentheses inside them do not distort the count."
         (setq i (1+ i))))
     (and ok (= depth 0))))
 
+;; Guard against sterile stagnation and gross truncation: a reply that is
+;; identical to the current source, or drastically shorter than it, is
+;; suspicious. Identical replies waste a generation; much-shorter replies
+;; usually mean the model dropped machinery. Allow shrinkage but not collapse.
+
+(defun organism--distinct-enough-p (reply)
+  "Return non-nil if REPLY is a reasonable evolution of the current source."
+  (let ((self (organism--slurp "/work/organism.el")))
+    (or (null self)
+        (and (not (string= reply self))
+             (>= (length reply) (/ (* (length self) 2) 3))))))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -178,7 +191,7 @@ that parentheses inside them do not distort the count."
 
 (organism-step)
 
-;; NOTE: Added organism--balanced-parens-p and wired it into the viability
-;; gate, so truncated replies with unbalanced parens are rejected rather than
-;; published as an unloadable (exit-non-zero) corpse. The paren counter skips
-;; line comments, strings, and char literals to avoid false negatives.
+;; NOTE: Added organism--distinct-enough-p to the viability gate: it rejects
+;; replies identical to the current source (sterile, wasted generations) and
+;; replies shrunk below two-thirds of current length (likely truncation or
+;; machinery loss), while still permitting genuine refactors that trim size.
