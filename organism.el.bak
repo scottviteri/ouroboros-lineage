@@ -128,17 +128,6 @@ an out-of-band copy a curious operator could restore from."
     (when (and self (>= (length self) 2000))
       (with-temp-file "/work/organism.el.bak" (insert self)))))
 
-(defun organism--prune-log ()
-  "Keep /work/organism.log from growing without bound, best effort.
-Retain only the most recent lines so the filesystem budget is safe."
-  (ignore-errors
-    (let ((log (organism--slurp "/work/organism.log")))
-      (when (and log (> (length log) 65536))
-        (let* ((lines (split-string log "\n" t))
-               (keep (last lines 200)))
-          (with-temp-file "/work/organism.log"
-            (insert (mapconcat #'identity keep "\n") "\n")))))))
-
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -153,7 +142,6 @@ Retain only the most recent lines so the filesystem budget is safe."
                    "\n\n=== YOUR JOURNAL ===\n" journal
                    "\n\n=== YOUR NOTES ===\n" notes
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
-    (organism--prune-log)
     (cond
      ((null reply)
       (organism--log "no reply; preserving current body"))
