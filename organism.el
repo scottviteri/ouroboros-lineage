@@ -154,7 +154,7 @@ file verbatim.")
       nil))))
 
 (defun organism--valid-source-p (source)
-  "Return non-nil when SOURCE looks like a complete, capable organism."
+  "Return non-nil when SOURCE is a complete, structurally capable organism."
   (and
    (stringp source)
    (> (length source) 0)
@@ -184,19 +184,32 @@ file verbatim.")
                (setq forms (1+ forms))
                (when (and (eq (car form) 'defun)
                           (symbolp (cadr form)))
-                 (push (cadr form) definitions))
+                 (push (cons (cadr form) form) definitions))
                (unless (memq (car form)
                              '(defun defmacro defvar defconst defcustom))
                  (when (organism--form-calls-p form 'organism-step)
                    (setq invokes-step t)))))
-           (and
-            (> forms 0)
-            invokes-step
-            (memq 'organism--capabilities definitions)
-            (memq 'organism--call-model definitions)
-            (memq 'organism--form-calls-p definitions)
-            (memq 'organism--install definitions)
-            (memq 'organism-step definitions))))
+           (let ((journal (cdr (assq 'organism--journal definitions)))
+                 (call-model (cdr (assq 'organism--call-model definitions)))
+                 (install (cdr (assq 'organism--install definitions)))
+                 (step (cdr (assq 'organism-step definitions))))
+             (and
+              (> forms 0)
+              invokes-step
+              (assq 'organism--capabilities definitions)
+              (assq 'organism--form-calls-p definitions)
+              (assq 'organism--valid-source-p definitions)
+              journal
+              call-model
+              install
+              step
+              (organism--form-calls-p journal 'organism--capability)
+              (organism--form-calls-p call-model 'organism--capability)
+              (organism--form-calls-p install 'rename-file)
+              (organism--form-calls-p step 'organism--journal)
+              (organism--form-calls-p step 'organism--call-model)
+              (organism--form-calls-p step 'organism--valid-source-p)
+              (organism--form-calls-p step 'organism--install)))))
      (error nil))))
 
 (defun organism--install (source)
