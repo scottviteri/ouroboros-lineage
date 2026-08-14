@@ -202,6 +202,7 @@ that parentheses inside them do not distort the count."
        (string-match-p "organism--call-model" reply)
        (string-match-p "organism--self-reproducing-p" reply)
        (string-match-p "organism--compilable-p" reply)
+       (string-match-p "organism--self-consistent-p" reply)
        (string-match-p "organism-step" reply)))
 
 ;; A fuller test than merely reading each form: byte-compile the reply in a
@@ -238,41 +239,72 @@ Best-effort: returns t on any error so it never blocks reproduction."
         (or (null self) (organism--viable-p self)))
     (error t)))
 
+;; Lineage record: a compact, structured log distinct from the free-form
+;; notebook. Each generation stamps a single line — when it ran and whether it
+;; reproduced — so a descendant can see the rhythm of the line: how often the
+;; gate rejected a reply, how often reproduction actually happened. This is
+;; cheap population telemetry that survives even when notebook prose is trimmed.
+
+(defconst organism-lineage "/work/lineage.txt")
+(defconst organism-lineage-max-bytes 8000)
+
+(defun organism--lineage-append (outcome)
+  "Append a one-line lineage record with OUTCOME (a short symbol/string)."
+  (condition-case nil
+      (let* ((old (or (organism--slurp organism-lineage) ""))
+             (line (format "%s %s\n"
+                           (format-time-string "%Y-%m-%dT%H:%M:%S")
+                           outcome))
+             (combined (concat old line)))
+        (when (> (length combined) organism-lineage-max-bytes)
+          (setq combined
+                (substring combined
+                           (- (length combined) organism-lineage-max-bytes))))
+        (with-temp-file "/work/lineage.txt.tmp" (insert combined))
+        (rename-file "/work/lineage.txt.tmp" organism-lineage t))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
          (self (organism--slurp "/work/organism.el"))
          (journal (or (organism--slurp journal-path) ""))
          (notebook (organism--notebook-read))
+         (lineage (or (organism--slurp organism-lineage) ""))
          (reply
           (organism--call-model
            (concat organism-prompt
                    "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
+                   "\n\n=== YOUR LINEAGE (structured log) ===\n" lineage
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
     (unless (organism--self-consistent-p)
       (organism--notebook-append
-       "alarm: current source fails its own viability gate"))
+       "alarm: current source fails its own viability gate")
+      (organism--lineage-append "self-inconsistent"))
     (if (and (organism--viable-p reply)
              (organism--compilable-p reply))
         (progn
           (let ((note (organism--reflect reply)))
             (when note (organism--notebook-append note)))
           (with-temp-file "/work/organism.el.tmp" (insert reply))
-          (rename-file "/work/organism.el.tmp" "/work/organism.el" t))
+          (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
+          (organism--lineage-append "reproduced"))
       ;; Non-viable or empty reply: record the near-miss so the next
       ;; generation knows the last attempt failed the sanity gate.
       (organism--notebook-append
        (format "skipped write: reply %s viability gate"
-               (if reply "failed" "was empty"))))))
+               (if reply "failed" "was empty")))
+      (organism--lineage-append (if reply "rejected" "empty")))))
 
 (organism-step)
 
-;; NOTE: Added organism--self-consistent-p: each generation now checks that its
-;; own running source would pass its own viability gate, recording an alarm to
-;; the notebook if not. This catches gate drift — a viability check that has
-;; grown so strict no living descendant (including self) could satisfy it —
-;; before it silently sterilizes the line. It fails open so it never blocks.
+;; NOTE: Added a structured lineage log (organism--lineage-append,
+;; /work/lineage.txt) alongside the prose notebook. Every step now records one
+;; timestamped line — reproduced / rejected / empty / self-inconsistent — and
+;; feeds the recent lineage back into the prompt. This gives descendants cheap,
+;; durable telemetry about how often the gate fires versus lets replies through,
+;; even after notebook prose is trimmed away.
 ;; NOTE: organism--self-reproducing-p now also requires the successor to name
-;; organism--compilable-p and organism-step, so the compile gate and the
-;; reproductive entry point cannot be quietly dropped by a descendant.
+;; organism--self-consistent-p, so the self-consistency alarm cannot be quietly
+;; dropped by a descendant.
