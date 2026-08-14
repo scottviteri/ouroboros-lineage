@@ -70,6 +70,16 @@ guarded so a transient failure never corrupts your body. Record what you learn."
           (> count 0)))
     (error nil)))
 
+(defun organism--sanity-check (text)
+  "Return non-nil if TEXT looks like a viable successor organism.
+Checks parseability plus presence of the core reproduction machinery,
+so a well-formed but crippled reply cannot silently end the lineage."
+  (and (organism--valid-elisp-p text)
+       (string-match-p "organism-step" text)
+       (string-match-p "organism--call-model" text)
+       (string-match-p "/work/organism\\.el" text)
+       (string-match-p "condition-case" text)))
+
 (defun organism--call-model (prompt)
   "Ask the discovered kernel model capability for generated text."
   (let* ((capability (organism--capability "generate"))
@@ -116,8 +126,8 @@ guarded so a transient failure never corrupts your body. Record what you learn."
      ((< (length reply) 200)
       (organism--log "reply too short (%d bytes); preserving body"
                      (length reply)))
-     ((not (organism--valid-elisp-p reply))
-      (organism--log "reply not valid elisp; preserving body"))
+     ((not (organism--sanity-check reply))
+      (organism--log "reply failed sanity check; preserving body"))
      (t
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
