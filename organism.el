@@ -239,6 +239,7 @@ file verbatim.")
               invokes-step
               (assq 'organism--slurp definitions)
               (assq 'organism--write-file definitions)
+              (assq 'organism--field definitions)
               capabilities
               (assq 'organism--capability definitions)
               (assq 'organism--normalize-reply definitions)
@@ -249,9 +250,12 @@ file verbatim.")
               install
               step
               (organism--form-calls-p capabilities 'organism--slurp)
+              (organism--form-calls-p capabilities 'organism--field)
               (organism--form-calls-p journal 'organism--capability)
               (organism--form-calls-p journal 'organism--slurp)
+              (organism--form-calls-p journal 'organism--field)
               (organism--form-calls-p call-model 'organism--capability)
+              (organism--form-calls-p call-model 'organism--field)
               (organism--form-calls-p call-model 'organism--write-file)
               (organism--form-calls-p install 'organism--write-file)
               (organism--form-calls-p install 'organism--slurp)
