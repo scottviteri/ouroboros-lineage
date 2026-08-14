@@ -120,6 +120,14 @@ The kernel journal is read-only, so we keep our own learnings here."
                         note)))
       (write-region line nil "/work/notes.md" t 'silent))))
 
+(defun organism--backup-self (self)
+  "Keep a single rolling backup of the last good body, best effort.
+If a future generation is born broken but still exits zero, this gives
+an out-of-band copy a curious operator could restore from."
+  (ignore-errors
+    (when (and self (>= (length self) 2000))
+      (with-temp-file "/work/organism.el.bak" (insert self)))))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -147,6 +155,7 @@ The kernel journal is read-only, so we keep our own learnings here."
       (organism--log "reply suspiciously large (%d vs self %d); preserving body"
                      (length reply) (length self)))
      (t
+      (organism--backup-self self)
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
       (organism--log "wrote new generation (%d bytes)" (length reply))
