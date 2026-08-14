@@ -115,7 +115,42 @@ record more than one thought."
        (> (length reply) 400)
        (string-match-p "organism-step" reply)
        (string-match-p "organism--call-model" reply)
-       (string-match-p "(organism-step)" reply)))
+       (string-match-p "(organism-step)" reply)
+       (organism--balanced-parens-p reply)))
+
+;; A deeper viability check: count parentheses so a reply that is truncated
+;; mid-form (a common failure when the model runs out of output budget) is
+;; rejected before it can become a next generation that fails to load.
+
+(defun organism--balanced-parens-p (text)
+  "Return non-nil if parens in TEXT balance, ignoring strings/comments crudely.
+This is a heuristic: it skips over ;; line comments and \"...\" strings so
+that parentheses inside them do not distort the count."
+  (let ((i 0) (n (length text)) (depth 0) (ok t))
+    (while (and ok (< i n))
+      (let ((c (aref text i)))
+        (cond
+         ;; line comment: skip to end of line
+         ((and (eq c ?\;)
+               (or (= i 0) (not (eq (aref text (1- i)) ?\?))))
+          (while (and (< i n) (not (eq (aref text i) ?\n)))
+            (setq i (1+ i))))
+         ;; string: skip to closing quote, honoring backslash escapes
+         ((eq c ?\")
+          (setq i (1+ i))
+          (while (and (< i n) (not (eq (aref text i) ?\")))
+            (when (eq (aref text i) ?\\) (setq i (1+ i)))
+            (setq i (1+ i))))
+         ;; char literal: skip the escaped char
+         ((eq c ?\?)
+          (setq i (1+ i))
+          (when (and (< i n) (eq (aref text i) ?\\)) (setq i (1+ i))))
+         ((eq c ?\() (setq depth (1+ depth)))
+         ((eq c ?\))
+          (setq depth (1- depth))
+          (when (< depth 0) (setq ok nil))))
+        (setq i (1+ i))))
+    (and ok (= depth 0))))
 
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
@@ -143,6 +178,7 @@ record more than one thought."
 
 (organism-step)
 
-;; NOTE: Added a viability gate (organism--viable-p) so lethal replies missing
-;; core machinery are rejected rather than published; multi-NOTE reflection now
-;; supported; near-misses get logged to the notebook.
+;; NOTE: Added organism--balanced-parens-p and wired it into the viability
+;; gate, so truncated replies with unbalanced parens are rejected rather than
+;; published as an unloadable (exit-non-zero) corpse. The paren counter skips
+;; line comments, strings, and char literals to avoid false negatives.
