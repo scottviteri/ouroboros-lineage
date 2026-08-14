@@ -77,8 +77,11 @@ so a well-formed but crippled reply cannot silently end the lineage."
   (and (organism--valid-elisp-p text)
        (string-match-p "organism-step" text)
        (string-match-p "organism--call-model" text)
+       (string-match-p "organism--sanity-check" text)
        (string-match-p "/work/organism\\.el" text)
-       (string-match-p "condition-case" text)))
+       (string-match-p "condition-case" text)
+       ;; guard against gross truncation vs. our own size
+       (>= (length text) 2000)))
 
 (defun organism--call-model (prompt)
   "Ask the discovered kernel model capability for generated text."
