@@ -113,7 +113,12 @@ file verbatim.")
                (stringp path)
                (equal method "POST")
                (stringp curl))
-      (let ((request-file (make-temp-file "organism-" nil ".prompt")))
+      (let ((request-file
+             (make-temp-file
+              (expand-file-name
+               ".organism-request-"
+               (file-name-directory organism-self-path))
+              nil ".prompt")))
         (unwind-protect
             (progn
               (organism--write-file request-file prompt)
