@@ -106,6 +106,7 @@ file verbatim.")
                         "curl" nil t nil
                         "-sS"
                         "--fail-with-body"
+                        "--noproxy" "*"
                         "--max-time"
                         (number-to-string organism-request-timeout)
                         "--unix-socket" socket
