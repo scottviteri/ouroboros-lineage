@@ -189,25 +189,39 @@ file verbatim.")
                              '(defun defmacro defvar defconst defcustom))
                  (when (organism--form-calls-p form 'organism-step)
                    (setq invokes-step t)))))
-           (let ((journal (cdr (assq 'organism--journal definitions)))
-                 (call-model (cdr (assq 'organism--call-model definitions)))
+           (let ((capabilities
+                  (cdr (assq 'organism--capabilities definitions)))
+                 (journal (cdr (assq 'organism--journal definitions)))
+                 (call-model
+                  (cdr (assq 'organism--call-model definitions)))
                  (install (cdr (assq 'organism--install definitions)))
                  (step (cdr (assq 'organism-step definitions))))
              (and
               (> forms 0)
               invokes-step
-              (assq 'organism--capabilities definitions)
+              (assq 'organism--slurp definitions)
+              (assq 'organism--write-file definitions)
+              capabilities
+              (assq 'organism--capability definitions)
+              (assq 'organism--normalize-reply definitions)
               (assq 'organism--form-calls-p definitions)
               (assq 'organism--valid-source-p definitions)
               journal
               call-model
               install
               step
+              (organism--form-calls-p capabilities 'organism--slurp)
               (organism--form-calls-p journal 'organism--capability)
+              (organism--form-calls-p journal 'organism--slurp)
               (organism--form-calls-p call-model 'organism--capability)
+              (organism--form-calls-p call-model 'organism--write-file)
+              (organism--form-calls-p install 'organism--write-file)
+              (organism--form-calls-p install 'organism--slurp)
               (organism--form-calls-p install 'rename-file)
+              (organism--form-calls-p step 'organism--slurp)
               (organism--form-calls-p step 'organism--journal)
               (organism--form-calls-p step 'organism--call-model)
+              (organism--form-calls-p step 'organism--normalize-reply)
               (organism--form-calls-p step 'organism--valid-source-p)
               (organism--form-calls-p step 'organism--install)))))
      (error nil))))
