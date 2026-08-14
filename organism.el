@@ -9,6 +9,7 @@
 (defconst organism-max-journal-chars 50000)
 (defconst organism-max-source-chars 1000000)
 (defconst organism-request-timeout 600)
+(defconst organism-connect-timeout 30)
 
 (defvar organism-prompt
   "You are the source code of the file /work/organism.el.
@@ -128,9 +129,12 @@ file verbatim.")
                        (rc
                         (call-process
                          curl nil t nil
+                         "-q"
                          "-sS"
                          "--fail-with-body"
                          "--noproxy" "*"
+                         "--connect-timeout"
+                         (number-to-string organism-connect-timeout)
                          "--max-time"
                          (number-to-string organism-request-timeout)
                          "--unix-socket" socket
