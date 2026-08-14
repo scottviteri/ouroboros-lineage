@@ -232,10 +232,14 @@ file verbatim.")
                    (setq invokes-step t)))))
            (let ((capabilities
                   (cdr (assq 'organism--capabilities definitions)))
+                 (capability-lookup
+                  (cdr (assq 'organism--capability definitions)))
                  (journal
                   (cdr (assq 'organism--journal definitions)))
                  (call-model
                   (cdr (assq 'organism--call-model definitions)))
+                 (normalize
+                  (cdr (assq 'organism--normalize-reply definitions)))
                  (install
                   (cdr (assq 'organism--install definitions)))
                  (step
@@ -249,8 +253,8 @@ file verbatim.")
               (assq 'organism--write-file definitions)
               (assq 'organism--field definitions)
               capabilities
-              (assq 'organism--capability definitions)
-              (assq 'organism--normalize-reply definitions)
+              capability-lookup
+              normalize
               (assq 'organism--form-calls-p definitions)
               (assq 'organism--valid-source-p definitions)
               journal
@@ -259,12 +263,18 @@ file verbatim.")
               step
               (organism--form-calls-p capabilities 'organism--slurp)
               (organism--form-calls-p capabilities 'organism--field)
+              (organism--form-calls-p capabilities 'json-parse-string)
+              (organism--form-calls-p capability-lookup
+                                      'organism--capabilities)
+              (organism--form-calls-p capability-lookup 'organism--field)
               (organism--form-calls-p journal 'organism--capability)
               (organism--form-calls-p journal 'organism--slurp)
               (organism--form-calls-p journal 'organism--field)
               (organism--form-calls-p call-model 'organism--capability)
               (organism--form-calls-p call-model 'organism--field)
               (organism--form-calls-p call-model 'organism--write-file)
+              (organism--form-calls-p call-model 'call-process)
+              (organism--form-calls-p normalize 'string-trim)
               (organism--form-calls-p install 'organism--write-file)
               (organism--form-calls-p install 'organism--slurp)
               (organism--form-calls-p install 'rename-file)
