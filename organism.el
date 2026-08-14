@@ -140,6 +140,19 @@ file verbatim.")
       (unless (string-empty-p text)
         (concat text "\n")))))
 
+(defun organism--form-calls-p (form function)
+  "Return non-nil when FORM contains a direct call to FUNCTION."
+  (and
+   (consp form)
+   (not (memq (car form) '(quote function)))
+   (or
+    (eq (car form) function)
+    (catch 'called
+      (dolist (item form)
+        (when (organism--form-calls-p item function)
+          (throw 'called t)))
+      nil))))
+
 (defun organism--valid-source-p (source)
   "Return non-nil when SOURCE looks like a complete, capable organism."
   (and
@@ -151,14 +164,7 @@ file verbatim.")
    (string-match-p "/work/organism\\.el" source)
    (string-match-p "\"generate\"" source)
    (string-match-p "\"journal\"" source)
-   (string-match-p
-    "(defun[ \t\n]+organism--capabilities\\_>" source)
-   (string-match-p
-    "(defun[ \t\n]+organism--call-model\\_>" source)
-   (string-match-p
-    "(defun[ \t\n]+organism--install\\_>" source)
    (string-match-p "rename-file" source)
-   (string-match-p "(organism-step\\_>" source)
    (condition-case nil
        (with-temp-buffer
          (insert source)
@@ -166,13 +172,31 @@ file verbatim.")
          (check-parens)
          (goto-char (point-min))
          (let ((read-eval nil)
-               (forms 0))
+               (forms 0)
+               (definitions nil)
+               (invokes-step nil))
            (while (progn
                     (forward-comment (buffer-size))
                     (not (eobp)))
-             (read (current-buffer))
-             (setq forms (1+ forms)))
-           (> forms 0)))
+             (let ((form (read (current-buffer))))
+               (unless (consp form)
+                 (error "Unexpected top-level atom"))
+               (setq forms (1+ forms))
+               (when (and (eq (car form) 'defun)
+                          (symbolp (cadr form)))
+                 (push (cadr form) definitions))
+               (unless (memq (car form)
+                             '(defun defmacro defvar defconst defcustom))
+                 (when (organism--form-calls-p form 'organism-step)
+                   (setq invokes-step t)))))
+           (and
+            (> forms 0)
+            invokes-step
+            (memq 'organism--capabilities definitions)
+            (memq 'organism--call-model definitions)
+            (memq 'organism--form-calls-p definitions)
+            (memq 'organism--install definitions)
+            (memq 'organism-step definitions))))
      (error nil))))
 
 (defun organism--install (source)
@@ -207,7 +231,8 @@ file verbatim.")
                               self))
              (reply (organism--normalize-reply
                      (organism--call-model request))))
-        (when (organism--valid-source-p reply)
+        (when (and (organism--valid-source-p reply)
+                   (not (equal reply self)))
           (organism--install reply))))))
 
 ;; Transient capability, transport, or model failures leave this generation in
