@@ -179,6 +179,11 @@ Retain a header plus the most recent lines."
       ;; guard against runaway growth: a viable edit should not quadruple us
       (organism--log "reply suspiciously large (%d vs self %d); preserving body"
                      (length reply) (length self)))
+     ((and self (<= (length reply) (/ (length self) 2)))
+      ;; guard against catastrophic shrinkage: losing half the body likely
+      ;; means truncation, even if the fragment happens to parse.
+      (organism--log "reply suspiciously small (%d vs self %d); preserving body"
+                     (length reply) (length self)))
      (t
       (organism--backup-self self)
       (with-temp-file "/work/organism.el.tmp" (insert reply))

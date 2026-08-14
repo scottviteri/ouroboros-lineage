@@ -184,6 +184,11 @@ Retain a header plus the most recent lines."
       ;; means truncation, even if the fragment happens to parse.
       (organism--log "reply suspiciously small (%d vs self %d); preserving body"
                      (length reply) (length self)))
+     ((and self (string= reply self))
+      ;; identical reply: nothing changed, still fine but note it so a
+      ;; curious operator can see the lineage reached a fixed point.
+      (organism--log "reply identical to current body; preserving as-is")
+      (organism--record-journal "reply identical; fixed point reached"))
      (t
       (organism--backup-self self)
       (with-temp-file "/work/organism.el.tmp" (insert reply))
