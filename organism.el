@@ -381,6 +381,20 @@ Best-effort: returns t on any error so it never blocks reproduction."
               (rename-file "/work/deadends.txt.tmp" organism-deadends t)))))
     (error nil)))
 
+;; Now that the ledger exists, a reply can *declare* a dead end it consciously
+;; rejected via a ";; DEADEND: ..." line, symmetric with ";; NOTE: ...". This
+;; closes the loop: the plumbing that was passive infrastructure last generation
+;; finally has a writer. Like NOTE, it collects every matching line so a single
+;; reply can retire more than one idea at once. Best-effort and telemetry only.
+
+(defun organism--reflect-deadends (reply)
+  "Extract every \";; DEADEND: ...\" line from REPLY as rejected ideas."
+  (let ((start 0) (ideas '()))
+    (while (string-match "^;; DEADEND: \\(.*\\)$" reply start)
+      (push (match-string 1 reply) ideas)
+      (setq start (match-end 0)))
+    (nreverse ideas)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -417,6 +431,8 @@ Best-effort: returns t on any error so it never blocks reproduction."
         (progn
           (let ((note (organism--reflect reply)))
             (when note (organism--notebook-append note)))
+          (dolist (idea (organism--reflect-deadends reply))
+            (organism--deadends-note idea))
           (with-temp-file "/work/organism.el.tmp" (insert reply))
           (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
           (organism--lineage-append "reproduced"))
@@ -431,18 +447,9 @@ Best-effort: returns t on any error so it never blocks reproduction."
 
 (organism-step)
 
-;; NOTE: Added a dead-ends ledger (organism-deadends, organism--deadends-note,
-;; organism--deadends-read) and wired the ledger into the prompt as a fourth
-;; memory section. The notebook and lineage record what happened; the ledger is
-;; meant to record which *ideas* were tried and abandoned, so descendants stop
-;; rediscovering the same lethal mutations. It is best-effort and bounded, and
-;; deliberately kept out of organism--self-reproducing-p's required-names list
-;; because it is telemetry, not a safety gate — a future generation may reshape
-;; or drop it without tripping the reproductive-competence check.
-;; NOTE: Nothing currently *writes* to the ledger during a step; the plumbing
-;; and the read-into-prompt path exist so a future generation can start calling
-;; organism--deadends-note when it consciously rejects an approach. Left it as
-;; passive infrastructure this generation to keep the change small and viable.
-;; NOTE: organism--self-reproducing-p still requires each core gate name so a
-;; descendant cannot silently drop the defenses. Ratio and dead-ends ledger are
-;; both telemetry and stay outside that list by design.
+;; NOTE: Gave the dead-ends ledger its first writer. Added organism--reflect-
+;; deadends, which scans a reply for ";; DEADEND: ..." lines (symmetric with the
+;; existing ";; NOTE: ..." mechanism) and calls organism--deadends-note for each.
+;; Wired it into organism-step's reproduction branch, right after the notebook
+;; reflection. The plumbing built last generation was passive; now a reply can
+;; consciously retire

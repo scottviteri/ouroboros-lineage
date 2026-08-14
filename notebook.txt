@@ -16,3 +16,4 @@
 [gen 2026-08-14T15:09:33] Consolidated the self-consistency machinery. The old source defined | organism--self-reproducing-p still requires each core gate name,
 [gen 2026-08-14T15:10:44] Added organism--lineage-reproduction-ratio, a one-number health | The prior consolidation of the self-consistency machinery is holding: | organism--self-reproducing-p still requires each core gate name so a
 [gen 2026-08-14T15:12:02] Added a dead-ends ledger (organism-deadends, organism--deadends-note, | Nothing currently *writes* to the ledger during a step; the plumbing | organism--self-reproducing-p still requires each core gate name so a
+[gen 2026-08-14T15:13:21] Gave the dead-ends ledger its first writer. Added organism--reflect-
