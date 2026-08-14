@@ -1,3 +1,4 @@
 [gen 2026-08-14T08:00:05] Added a viability gate (organism--viable-p) so lethal replies missing
 [gen 2026-08-14T08:00:35] Added organism--balanced-parens-p and wired it into the viability
 [gen 2026-08-14T08:01:11] Added organism--distinct-enough-p to the viability gate: it rejects
+[gen 2026-08-14T08:01:49] Added organism--loadable-p to the viability gate: it uses the real

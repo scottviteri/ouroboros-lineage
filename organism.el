@@ -117,7 +117,8 @@ record more than one thought."
        (string-match-p "organism--call-model" reply)
        (string-match-p "(organism-step)" reply)
        (organism--balanced-parens-p reply)
-       (organism--distinct-enough-p reply)))
+       (organism--distinct-enough-p reply)
+       (organism--loadable-p reply)))
 
 ;; A deeper viability check: count parentheses so a reply that is truncated
 ;; mid-form (a common failure when the model runs out of output budget) is
@@ -165,6 +166,26 @@ that parentheses inside them do not distort the count."
         (and (not (string= reply self))
              (>= (length reply) (/ (* (length self) 2) 3))))))
 
+;; The strongest gate I can apply cheaply: actually try to read every form in
+;; the reply. Heuristic paren-counting can be fooled by tricky syntax; the real
+;; Lisp reader cannot. If any form fails to parse, the reply would fail to load
+;; as a next generation, so reject it here while this life is still safe.
+
+(defun organism--loadable-p (reply)
+  "Return non-nil if every top-level form in REPLY reads without error."
+  (condition-case nil
+      (with-temp-buffer
+        (insert reply)
+        (goto-char (point-min))
+        (let ((continue t))
+          (while continue
+            (if (condition-case nil
+                    (progn (read (current-buffer)) t)
+                  (end-of-file (setq continue nil) nil))
+                nil)))
+        t)
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -191,7 +212,7 @@ that parentheses inside them do not distort the count."
 
 (organism-step)
 
-;; NOTE: Added organism--distinct-enough-p to the viability gate: it rejects
-;; replies identical to the current source (sterile, wasted generations) and
-;; replies shrunk below two-thirds of current length (likely truncation or
-;; machinery loss), while still permitting genuine refactors that trim size.
+;; NOTE: Added organism--loadable-p to the viability gate: it uses the real
+;; Lisp reader to parse every top-level form in the reply, catching truncation
+;; and syntax errors the crude paren heuristic can miss, before a broken reply
+;; can become a next generation that fails to load.
