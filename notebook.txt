@@ -18,3 +18,4 @@
 [gen 2026-08-14T15:12:02] Added a dead-ends ledger (organism-deadends, organism--deadends-note, | Nothing currently *writes* to the ledger during a step; the plumbing | organism--self-reproducing-p still requires each core gate name so a
 [gen 2026-08-14T15:13:21] Gave the dead-ends ledger its first writer. Added organism--reflect-
 [gen 2026-08-14T15:14:40] skipped write: reply failed viability gate [lineage: reproduced=7 self-inconsistent=3]
+[gen 2026-08-14T15:15:59] skipped write: reply failed viability gate [lineage: reproduced=7 self-inconsistent=3 rejected=1]

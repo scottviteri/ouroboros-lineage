@@ -32,3 +32,5 @@
 ## gen 16 — changed — organism +22/-15; 3 paths — 2026-08-14T08:13:21-07:00
 
 ## gen 17 — changed — organism unchanged; 2 other paths — 2026-08-14T08:14:40-07:00
+
+## gen 18 — changed — organism unchanged; 2 other paths — 2026-08-14T08:15:59-07:00
