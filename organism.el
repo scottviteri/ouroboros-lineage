@@ -48,6 +48,18 @@ file verbatim.")
   (let ((coding-system-for-write 'utf-8-unix))
     (write-region text nil path nil 'silent)))
 
+(defun organism--field (key object)
+  "Return KEY's value from an alist OBJECT with symbol or string keys."
+  (when (listp object)
+    (let* ((symbol-key (if (symbolp key) key (intern-soft key)))
+           (string-key (if (stringp key) key (symbol-name key)))
+           (symbol-cell (and symbol-key (assq symbol-key object)))
+           (string-cell (assoc string-key object)))
+      (cond
+       (symbol-cell (cdr symbol-cell))
+       (string-cell (cdr string-cell))
+       (t nil)))))
+
 (defun organism--capabilities ()
   "Read the current kernel capability list."
   (let ((text (organism--slurp organism-capability-manifest)))
@@ -59,7 +71,8 @@ file verbatim.")
                                      :array-type 'list
                                      :null-object nil
                                      :false-object nil))
-                 (capabilities (alist-get 'capabilities document)))
+                 (capabilities
+                  (organism--field 'capabilities document)))
             (when (listp capabilities)
               capabilities))
         (error nil)))))
@@ -69,14 +82,16 @@ file verbatim.")
   (catch 'found
     (dolist (capability (organism--capabilities))
       (when (and (listp capability)
-                 (equal (alist-get 'name capability) name))
+                 (equal (organism--field 'name capability) name))
         (throw 'found capability)))
     nil))
 
 (defun organism--journal ()
   "Read a bounded tail of the kernel journal."
   (let* ((capability (organism--capability "journal"))
-         (text (organism--slurp (alist-get 'path capability))))
+         (text
+          (organism--slurp
+           (organism--field 'path capability))))
     (cond
      ((not (stringp text)) "")
      ((> (length text) organism-max-journal-chars)
@@ -89,9 +104,9 @@ file verbatim.")
 (defun organism--call-model (prompt)
   "Ask the discovered kernel generation capability for generated text."
   (let* ((capability (organism--capability "generate"))
-         (socket (alist-get 'socket capability))
-         (path (alist-get 'path capability))
-         (method (alist-get 'method capability))
+         (socket (organism--field 'socket capability))
+         (path (organism--field 'path capability))
+         (method (organism--field 'method capability))
          (curl (executable-find "curl")))
     (when (and (stringp prompt)
                (stringp socket)
@@ -148,8 +163,13 @@ file verbatim.")
    (or
     (eq (car form) function)
     (catch 'called
-      (dolist (item form)
-        (when (organism--form-calls-p item function)
+      (let ((items form))
+        (while (consp items)
+          (when (organism--form-calls-p (car items) function)
+            (throw 'called t))
+          (setq items (cdr items)))
+        (when (and items
+                   (organism--form-calls-p items function))
           (throw 'called t)))
       nil))))
 
@@ -191,11 +211,14 @@ file verbatim.")
                    (setq invokes-step t)))))
            (let ((capabilities
                   (cdr (assq 'organism--capabilities definitions)))
-                 (journal (cdr (assq 'organism--journal definitions)))
+                 (journal
+                  (cdr (assq 'organism--journal definitions)))
                  (call-model
                   (cdr (assq 'organism--call-model definitions)))
-                 (install (cdr (assq 'organism--install definitions)))
-                 (step (cdr (assq 'organism-step definitions))))
+                 (install
+                  (cdr (assq 'organism--install definitions)))
+                 (step
+                  (cdr (assq 'organism-step definitions))))
              (and
               (> forms 0)
               invokes-step
@@ -251,13 +274,15 @@ file verbatim.")
   (let ((self (organism--slurp organism-self-path)))
     (when (stringp self)
       (let* ((journal (organism--journal))
-             (request (concat organism-prompt
-                              "\n\n=== YOUR JOURNAL ===\n"
-                              journal
-                              "\n\n=== YOUR CURRENT SOURCE ===\n"
-                              self))
-             (reply (organism--normalize-reply
-                     (organism--call-model request))))
+             (request
+              (concat organism-prompt
+                      "\n\n=== YOUR JOURNAL ===\n"
+                      journal
+                      "\n\n=== YOUR CURRENT SOURCE ===\n"
+                      self))
+             (reply
+              (organism--normalize-reply
+               (organism--call-model request))))
         (when (and (organism--valid-source-p reply)
                    (not (equal reply self)))
           (organism--install reply))))))
