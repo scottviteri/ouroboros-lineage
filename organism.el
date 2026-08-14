@@ -175,10 +175,15 @@ file verbatim.")
          (make-temp-file
           (expand-file-name ".organism-next-"
                             (file-name-directory organism-self-path))
-          nil ".el")))
+          nil ".el"))
+        (mode (ignore-errors (file-modes organism-self-path))))
     (unwind-protect
         (progn
           (organism--write-file temporary source)
+          (unless (equal source (organism--slurp temporary))
+            (error "Temporary organism verification failed"))
+          (when (integerp mode)
+            (set-file-modes temporary mode))
           (rename-file temporary organism-self-path t)
           (setq temporary nil))
       (when temporary
