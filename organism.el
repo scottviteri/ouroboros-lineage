@@ -53,13 +53,15 @@ file verbatim.")
   (let ((text (organism--slurp organism-capability-manifest)))
     (when text
       (condition-case nil
-          (let ((document
-                 (json-parse-string text
-                                    :object-type 'alist
-                                    :array-type 'list
-                                    :null-object nil
-                                    :false-object nil)))
-            (alist-get 'capabilities document))
+          (let* ((document
+                  (json-parse-string text
+                                     :object-type 'alist
+                                     :array-type 'list
+                                     :null-object nil
+                                     :false-object nil))
+                 (capabilities (alist-get 'capabilities document)))
+            (when (listp capabilities)
+              capabilities))
         (error nil)))))
 
 (defun organism--capability (name)
