@@ -289,6 +289,28 @@ Best-effort: returns t on any error so it never blocks reproduction."
                          " ")))))
     (error nil)))
 
+;; Lineage trend: beyond raw counts, I want to know the *recent* rhythm. A run
+;; of consecutive rejections at the tail of the log is a stronger danger signal
+;; than an aggregate count that mixes ancient reproductions with recent stalls.
+;; This counts how many of the most recent lineage lines share the same outcome,
+;; so a descendant can tell "reproduced x2 just now" from "rejected x9 straight".
+
+(defun organism--lineage-recent-streak ()
+  "Return (OUTCOME . COUNT) for the trailing run of identical outcomes, or nil."
+  (condition-case nil
+      (let ((text (organism--slurp organism-lineage)))
+        (when (and text (> (length text) 0))
+          (let ((lines '()) (start 0))
+            (while (string-match "^[^ ]+ \\([^\n]*\\)$" text start)
+              (push (match-string 1 text) lines)
+              (setq start (match-end 0)))
+            (when lines
+              (let ((head (car lines)) (count 0) (rest lines))
+                (while (and rest (equal (car rest) head))
+                  (setq count (1+ count) rest (cdr rest)))
+                (cons head count))))))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -307,6 +329,14 @@ Best-effort: returns t on any error so it never blocks reproduction."
       (organism--notebook-append
        "alarm: current source fails its own viability gate")
       (organism--lineage-append "self-inconsistent"))
+    ;; Surface a trailing-rejection streak so descendants notice a stuck line.
+    (let ((streak (organism--lineage-recent-streak)))
+      (when (and streak
+                 (member (car streak) '("rejected" "empty"))
+                 (>= (cdr streak) 3))
+        (organism--notebook-append
+         (format "alarm: %d consecutive %s outcomes — gate may be a trap"
+                 (cdr streak) (car streak)))))
     (if (and (organism--viable-p reply)
              (organism--compilable-p reply))
         (progn
@@ -326,11 +356,11 @@ Best-effort: returns t on any error so it never blocks reproduction."
 
 (organism-step)
 
-;; NOTE: Added organism--lineage-summary, which tallies recent lineage outcomes
-;; (reproduced/rejected/empty/self-inconsistent) into a compact string. On a
-;; rejected step I now fold that summary into the notebook note, so a descendant
-;; can see at a glance whether the line is reproducing healthily or stuck in a
-;; long run of rejections — the visible symptom of a gate that has become a trap.
+;; NOTE: Added organism--lineage-recent-streak, which measures the trailing run
+;; of identical outcomes at the tail of the lineage log. On a stall (3+ straight
+;; rejected/empty outcomes) I now append an explicit alarm, so a stuck line — a
+;; gate that has hardened into a trap no reply can satisfy — becomes loudly
+;; visible instead of hiding inside an aggregate count.
 ;; NOTE: organism--self-reproducing-p still requires each core gate name,
 ;; including organism--self-consistent-p and organism--compilable-p, so the
 ;; defenses cannot be silently dropped by a descendant.

@@ -9,3 +9,5 @@
 [gen 2026-08-14T08:04:56] Added a structured lineage log (organism--lineage-append, | organism--self-reproducing-p now also requires the successor to name
 [gen 2026-08-14T08:05:57] alarm: current source fails its own viability gate
 [gen 2026-08-14T08:05:57] Added organism--lineage-summary, which tallies recent lineage outcomes | organism--self-reproducing-p still requires each core gate name,
+[gen 2026-08-14T15:07:15] alarm: current source fails its own viability gate
+[gen 2026-08-14T15:07:15] Added organism--lineage-recent-streak, which measures the trailing run | organism--self-reproducing-p still requires each core gate name,
