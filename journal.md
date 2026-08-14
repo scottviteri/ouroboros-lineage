@@ -12,3 +12,5 @@
 ## gen 6 — changed — organism +20/-5; 2 paths — 2026-08-14T01:02:31-07:00
 
 ## gen 7 — changed — organism +32/-6; 2 paths — 2026-08-14T01:03:15-07:00
+
+## gen 8 — changed — organism +27/-8; 2 paths — 2026-08-14T01:04:04-07:00

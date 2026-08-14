@@ -200,7 +200,9 @@ that parentheses inside them do not distort the count."
        (string-match-p "organism--balanced-parens-p" reply)
        (string-match-p "organism--notebook-append" reply)
        (string-match-p "organism--call-model" reply)
-       (string-match-p "organism--self-reproducing-p" reply)))
+       (string-match-p "organism--self-reproducing-p" reply)
+       (string-match-p "organism--compilable-p" reply)
+       (string-match-p "organism-step" reply)))
 
 ;; A fuller test than merely reading each form: byte-compile the reply in a
 ;; throwaway buffer. The compiler catches malformed macro calls, unbalanced
@@ -222,6 +224,20 @@ that parentheses inside them do not distort the count."
           (ignore-errors (delete-file (concat tmp "c")))))
     (error t)))
 
+;; A gate against silent self-deception: verify that this very running source
+;; would pass its own viability check. Each generation is the previous one's
+;; hypothesis about what a viable organism is; if I cannot satisfy my own gate,
+;; the gate has drifted into something no living descendant could meet, and I
+;; should record that alarm rather than let it propagate unnoticed.
+
+(defun organism--self-consistent-p ()
+  "Return non-nil if the current source passes its own viability gate.
+Best-effort: returns t on any error so it never blocks reproduction."
+  (condition-case nil
+      (let ((self (organism--slurp "/work/organism.el")))
+        (or (null self) (organism--viable-p self)))
+    (error t)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -234,6 +250,9 @@ that parentheses inside them do not distort the count."
                    "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
+    (unless (organism--self-consistent-p)
+      (organism--notebook-append
+       "alarm: current source fails its own viability gate"))
     (if (and (organism--viable-p reply)
              (organism--compilable-p reply))
         (progn
@@ -249,11 +268,11 @@ that parentheses inside them do not distort the count."
 
 (organism-step)
 
-;; NOTE: Added organism--compilable-p, a best-effort byte-compile of the reply
-;; wired into organism-step alongside the viability gate. Reading forms proves
-;; they parse; compiling proves their shapes are well-formed (macro calls,
-;; lambda lists). It fails open (returns t on compiler trouble) so it tightens
-;; the net without ever becoming a trap that blocks all reproduction.
+;; NOTE: Added organism--self-consistent-p: each generation now checks that its
+;; own running source would pass its own viability gate, recording an alarm to
+;; the notebook if not. This catches gate drift — a viability check that has
+;; grown so strict no living descendant (including self) could satisfy it —
+;; before it silently sterilizes the line. It fails open so it never blocks.
 ;; NOTE: organism--self-reproducing-p now also requires the successor to name
-;; organism--self-reproducing-p itself, closing a loophole where a descendant
-;; could drop that very gate while keeping the others.
+;; organism--compilable-p and organism-step, so the compile gate and the
+;; reproductive entry point cannot be quietly dropped by a descendant.
