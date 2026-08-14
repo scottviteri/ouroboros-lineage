@@ -159,11 +159,12 @@ file verbatim.")
          (goto-char (point-min))
          (let ((read-eval nil)
                (forms 0))
-           (condition-case nil
-               (while t
-                 (read (current-buffer))
-                 (setq forms (1+ forms)))
-             (end-of-file (> forms 0)))))
+           (while (progn
+                    (forward-comment (buffer-size))
+                    (not (eobp)))
+             (read (current-buffer))
+             (setq forms (1+ forms)))
+           (> forms 0)))
      (error nil))))
 
 (defun organism--install (source)
