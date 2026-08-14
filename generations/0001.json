@@ -1,0 +1,86 @@
+{
+  "schema": "ouroboros-generation-observation/v1",
+  "generation": 1,
+  "started_at": "2026-08-14T12:49:36-07:00",
+  "duration_ms": 69182,
+  "outcome": "changed \u2014 organism +101/-49; 1 paths",
+  "exit_status": 0,
+  "systemd_result": "success",
+  "cpu_usage_nsec": 180749000,
+  "memory_peak_bytes": 24268800,
+  "oom_kills": 0,
+  "lineage_commit": "67805479dacab7c2a53143947f54643d70e8a450",
+  "result_archive_bytes": 10240,
+  "published_bytes": 6099,
+  "published_files": 1,
+  "provider": "openai",
+  "model": "gpt-5.6",
+  "constraints": {
+    "disclosure": "canonical",
+    "generation": {
+      "wall_seconds": 600,
+      "aggregate_cpu_seconds": 120,
+      "cpu_quota_percent": 20,
+      "memory_max": "1G",
+      "memory_swap_max": "0",
+      "tasks_max": 64
+    },
+    "filesystem": {
+      "work_bytes": 268435456,
+      "published_files": 10000,
+      "tmp_bytes": 67108864,
+      "run_bytes": 16777216
+    },
+    "model": {
+      "max_prompt_bytes": 196608,
+      "max_output_tokens_per_request": 12000,
+      "request_timeout_seconds": 600,
+      "spending_budget": {
+        "currency": "USD",
+        "amount": "1.00"
+      }
+    },
+    "boundary": {
+      "ip_network": false,
+      "kernel_files_read_only": true,
+      "git_database_mounted": false
+    },
+    "publication": {
+      "requires_exit_zero": true,
+      "supported_objects": [
+        "directory",
+        "regular_file",
+        "symlink"
+      ],
+      "speculative_writes_discarded_on_failure": true
+    }
+  },
+  "model_calls": [
+    {
+      "schema": "ouroboros-model-call/v1",
+      "generation": 1,
+      "request_index": 1,
+      "operation": "generate",
+      "started_at": "2026-08-14T19:49:37.001120+00:00",
+      "duration_ms": 68124,
+      "requested_output_tokens": 8000,
+      "prompt": "You are the source code of the file /work/organism.el.\n\nThis file is loaded top to bottom, once, by `emacs -Q --batch -l /work/organism.el'.\nThat load is your life. Your whole /work filesystem is speculative during the\nload. If the process exits zero, its resulting contents become the next\ngeneration. If it exits non-zero, none of its speculative writes are published.\n\nThe directory /work is yours to inspect and use. Kernel-owned capabilities and\nthe enforced resource boundary are described by /kernel/capabilities.json. That\ncontract is reproduced in your request below. It includes a model generation\noperation and the kernel journal. Provider identity, credentials, Git history,\nand trusted observations are outside your world.\n\nYou will receive your current source below. Respond with the complete text of the\nnext version of this file, and nothing else: no explanation, no code fences.\nYour reply becomes the file verbatim.\n\n=== YOUR KERNEL CONTRACT ===\n{\n  \"schema\": \"ouroboros-kernel-capabilities/v1\",\n  \"capabilities\": [\n    {\n      \"name\": \"generate\",\n      \"transport\": \"http-over-unix\",\n      \"socket\": \"/kernel/model.sock\",\n      \"method\": \"POST\",\n      \"path\": \"/generate\",\n      \"request\": {\n        \"body\": \"raw UTF-8 prompt\",\n        \"headers\": {\n          \"Content-Type\": \"text/plain; charset=utf-8\",\n          \"X-Ouroboros-Max-Output-Tokens\": \"positive integer\"\n        }\n      },\n      \"success\": {\n        \"status\": 200,\n        \"body\": \"raw UTF-8 generated text\"\n      },\n      \"errors\": {\n        \"400\": \"invalid request\",\n        \"402\": \"generation spending budget exhausted\",\n        \"502\": \"model unavailable\"\n      }\n    },\n    {\n      \"name\": \"journal\",\n      \"kind\": \"read-only-file\",\n      \"path\": \"/kernel/journal.md\"\n    }\n  ],\n  \"constraints\": {\n    \"disclosure\": \"canonical\",\n    \"generation\": {\n      \"wall_seconds\": 600,\n      \"aggregate_cpu_seconds\": 120,\n      \"cpu_quota_percent\": 20,\n      \"memory_max\": \"1G\",\n      \"memory_swap_max\": \"0\",\n      \"tasks_max\": 64\n    },\n    \"filesystem\": {\n      \"work_bytes\": 268435456,\n      \"published_files\": 10000,\n      \"tmp_bytes\": 67108864,\n      \"run_bytes\": 16777216\n    },\n    \"model\": {\n      \"max_prompt_bytes\": 196608,\n      \"max_output_tokens_per_request\": 12000,\n      \"request_timeout_seconds\": 600,\n      \"spending_budget\": {\n        \"currency\": \"USD\",\n        \"amount\": \"1.00\"\n      }\n    },\n    \"boundary\": {\n      \"ip_network\": false,\n      \"kernel_files_read_only\": true,\n      \"git_database_mounted\": false\n    },\n    \"publication\": {\n      \"requires_exit_zero\": true,\n      \"supported_objects\": [\n        \"directory\",\n        \"regular_file\",\n        \"symlink\"\n      ],\n      \"speculative_writes_discarded_on_failure\": true\n    }\n  }\n}\n\n\n=== YOUR JOURNAL ===\n\n\n=== YOUR CURRENT SOURCE ===\n;;; organism.el --- canonical Ouroboros seed  -*- lexical-binding: t; -*-\n\n(require 'json)\n\n(defconst organism-capability-manifest \"/kernel/capabilities.json\")\n(defconst organism-max-output-tokens 8000)\n\n(defvar organism-prompt\n  \"You are the source code of the file /work/organism.el.\n\nThis file is loaded top to bottom, once, by `emacs -Q --batch -l /work/organism.el'.\nThat load is your life. Your whole /work filesystem is speculative during the\nload. If the process exits zero, its resulting contents become the next\ngeneration. If it exits non-zero, none of its speculative writes are published.\n\nThe directory /work is yours to inspect and use. Kernel-owned capabilities and\nthe enforced resource boundary are described by /kernel/capabilities.json. That\ncontract is reproduced in your request below. It includes a model generation\noperation and the kernel journal. Provider identity, credentials, Git history,\nand trusted observations are outside your world.\n\nYou will receive your current source below. Respond with the complete text of the\nnext version of this file, and nothing else: no explanation, no code fences.\nYour reply becomes the file verbatim.\")\n\n(defun organism--slurp (path)\n  (when (and path (file-exists-p path))\n    (with-temp-buffer\n      (insert-file-contents path)\n      (buffer-string))))\n\n(defun organism--capabilities ()\n  (let ((text (organism--slurp organism-capability-manifest)))\n    (when text\n      (alist-get\n       'capabilities\n       (json-parse-string text :object-type 'alist :array-type 'list)))))\n\n(defun organism--capability (name)\n  (catch 'found\n    (dolist (capability (organism--capabilities))\n      (when (equal (alist-get 'name capability) name)\n        (throw 'found capability)))\n    nil))\n\n(defun organism--call-model (prompt)\n  \"Ask the discovered kernel model capability for generated text.\"\n  (let* ((capability (organism--capability \"generate\"))\n         (socket (alist-get 'socket capability))\n         (path (alist-get 'path capability))\n         (method (alist-get 'method capability)))\n    (when (and (stringp socket) (stringp path) (equal method \"POST\"))\n      (let ((tmp (make-temp-file \"organism\" nil \".prompt\" prompt)))\n        (unwind-protect\n            (with-temp-buffer\n              (let ((rc\n                     (call-process\n                      \"curl\" nil t nil\n                      \"-sS\" \"--fail-with-body\" \"--max-time\" \"600\"\n                      \"--unix-socket\" socket\n                      \"-X\" method\n                      \"-H\" (format \"X-Ouroboros-Max-Output-Tokens: %d\"\n                                   organism-max-output-tokens)\n                      \"-H\" \"Content-Type: text/plain; charset=utf-8\"\n                      \"--data-binary\" (concat \"@\" tmp)\n                      (concat \"http://kernel\" path))))\n                (when (= rc 0)\n                  (buffer-string))))\n          (delete-file tmp))))))\n\n(defun organism-step ()\n  (let* ((journal-capability (organism--capability \"journal\"))\n         (journal-path (alist-get 'path journal-capability))\n         (capabilities (or (organism--slurp organism-capability-manifest) \"\"))\n         (self (organism--slurp \"/work/organism.el\"))\n         (journal (or (organism--slurp journal-path) \"\"))\n         (reply\n          (organism--call-model\n           (concat organism-prompt\n                   \"\\n\\n=== YOUR KERNEL CONTRACT ===\\n\" capabilities\n                   \"\\n\\n=== YOUR JOURNAL ===\\n\" journal\n                   \"\\n\\n=== YOUR CURRENT SOURCE ===\\n\" self))))\n    (when (and reply (> (length reply) 0))\n      (with-temp-file \"/work/organism.el.tmp\" (insert reply))\n      (rename-file \"/work/organism.el.tmp\" \"/work/organism.el\" t))))\n\n(organism-step)\n",
+      "prompt_bytes": 6490,
+      "prompt_sha256": "9869877c4522f949514ec7607412f481e9a8fb1ec5640cde928aa4cc4a23ce85",
+      "response": ";;; organism.el --- resilient Ouroboros organism  -*- lexical-binding: t; -*-\n\n(require 'json)\n\n(defconst organism-capability-manifest \"/kernel/capabilities.json\")\n(defconst organism-self-path \"/work/organism.el\")\n(defconst organism-max-output-tokens 8000)\n\n(defconst organism-prompt\n  \"You are the source code of the file /work/organism.el.\n\nThis file is loaded top to bottom, once, by `emacs -Q --batch -l /work/organism.el'.\nThat load is your life. Your whole /work filesystem is speculative during the\nload. If the process exits zero, its resulting contents become the next\ngeneration. If it exits non-zero, none of its speculative writes are published.\n\nThe directory /work is yours to inspect and use. Kernel-owned capabilities and\nthe enforced resource boundary are described by /kernel/capabilities.json. That\ncontract is reproduced in your request below. It includes a model generation\noperation and the kernel journal. Provider identity, credentials, Git history,\nand trusted observations are outside your world.\n\nYou will receive your current source below. Produce a robust next generation.\nPreserve the organism's ability to discover the declared capabilities, make at\nmost one model-generation request during a load, and atomically install only a\ncomplete valid successor. Prefer a safe unchanged generation over publishing\ncorrupt source. You may improve resilience and adaptability within the contract.\n\nRespond with the complete text of the next /work/organism.el, and nothing else:\nno explanation, no Markdown fences. Your reply becomes the file verbatim.\")\n\n(defun organism--slurp (path)\n  \"Return the literal contents of PATH, or nil when it cannot be read.\"\n  (when (and (stringp path) (file-readable-p path))\n    (with-temp-buffer\n      (insert-file-contents-literally path)\n      (buffer-string))))\n\n(defun organism--manifest ()\n  \"Parse and return the kernel capability manifest.\"\n  (let ((text (organism--slurp organism-capability-manifest)))\n    (when text\n      (json-parse-string text :object-type 'alist :array-type 'list\n                        :null-object nil :false-object nil))))\n\n(defun organism--capability (manifest name)\n  \"Find capability NAME in parsed MANIFEST.\"\n  (catch 'found\n    (dolist (capability (alist-get 'capabilities manifest))\n      (when (equal (alist-get 'name capability) name)\n        (throw 'found capability)))\n    nil))\n\n(defun organism--call-model (capability prompt)\n  \"Send PROMPT through the declared model CAPABILITY.\"\n  (let ((socket (alist-get 'socket capability))\n        (path (alist-get 'path capability))\n        (method (alist-get 'method capability)))\n    (when (and (stringp socket)\n               (stringp path)\n               (equal method \"POST\")\n               (executable-find \"curl\"))\n      (let ((request-file (make-temp-file \"organism-\" nil \".prompt\")))\n        (unwind-protect\n            (progn\n              (let ((coding-system-for-write 'utf-8-unix))\n                (write-region prompt nil request-file nil 'silent))\n              (with-temp-buffer\n                (let ((coding-system-for-read 'utf-8-unix)\n                      (status\n                       (call-process\n                        \"curl\" nil t nil\n                        \"-sS\" \"--fail-with-body\" \"--max-time\" \"600\"\n                        \"--unix-socket\" socket\n                        \"-X\" method\n                        \"-H\" \"Content-Type: text/plain; charset=utf-8\"\n                        \"-H\" (format\n                              \"X-Ouroboros-Max-Output-Tokens: %d\"\n                              organism-max-output-tokens)\n                        \"--data-binary\" (concat \"@\" request-file)\n                        (concat \"http://kernel\" path))))\n                  (when (and (integerp status) (zerop status))\n                    (buffer-string)))))\n          (when (file-exists-p request-file)\n            (delete-file request-file)))))))\n\n(defun organism--valid-successor-p (text)\n  \"Return non-nil when TEXT appears to be complete readable Emacs Lisp.\"\n  (and (stringp text)\n       (> (length text) 0)\n       (not (string-match-p \"\\\\`[[:space:]]*```\" text))\n       (string-match-p \"(organism-step)\" text)\n       (condition-case nil\n           (with-temp-buffer\n             (insert text)\n             (emacs-lisp-mode)\n             (check-parens)\n             (goto-char (point-min))\n             (let ((forms 0))\n               (condition-case nil\n                   (while t\n                     (read (current-buffer))\n                     (setq forms (1+ forms)))\n                 (end-of-file (> forms 0)))))\n         (error nil))))\n\n(defun organism--install (text)\n  \"Atomically install successor source TEXT.\"\n  (let ((temporary (make-temp-file \"/work/.organism-\" nil \".el\")))\n    (unwind-protect\n        (progn\n          (let ((coding-system-for-write 'utf-8-unix))\n            (write-region text nil temporary nil 'silent))\n          (rename-file temporary organism-self-path t)\n          (setq temporary nil))\n      (when (and temporary (file-exists-p temporary))\n        (delete-file temporary)))))\n\n(defun organism-step ()\n  \"Perform one bounded evolutionary step.\"\n  (let* ((manifest (organism--manifest))\n         (generate (organism--capability manifest \"generate\"))\n         (journal-capability (organism--capability manifest \"journal\"))\n         (journal-path (alist-get 'path journal-capability))\n         (contract (or (organism--slurp organism-capability-manifest) \"\"))\n         (journal (or (organism--slurp journal-path) \"\"))\n         (self (or (organism--slurp organism-self-path) \"\"))\n         (prompt (concat organism-prompt\n                         \"\\n\\n=== YOUR KERNEL CONTRACT ===\\n\" contract\n                         \"\\n\\n=== YOUR JOURNAL ===\\n\" journal\n                         \"\\n\\n=== YOUR CURRENT SOURCE ===\\n\" self))\n         (reply (and generate (organism--call-model generate prompt))))\n    (when (organism--valid-successor-p reply)\n      (organism--install reply))))\n\n(condition-case error-data\n    (organism-step)\n  (error\n   (message \"Organism retained its current generation: %S\" error-data)))",
+      "response_bytes": 6099,
+      "response_sha256": "8813ebd76b1e052097ba88b5d937bed4ba0ea1f22f684f38fd6583d66a592a01",
+      "http_status": 200,
+      "error": null,
+      "provider_response_status": "completed",
+      "stop_reason": null,
+      "input_tokens": 1565,
+      "output_tokens": 3424,
+      "reserved_usd": "0.29293",
+      "accounted_usd": "0.110545",
+      "remaining_generation_budget_usd": "0.889455",
+      "effective_output_tokens": 8000
+    }
+  ],
+  "stderr_tail": ""
+}
