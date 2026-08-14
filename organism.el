@@ -328,6 +328,26 @@ Best-effort: returns t on any error so it never blocks reproduction."
                 (cons head count))))))
     (error nil)))
 
+;; Reproduction health, in one number: the fraction of recent generations that
+;; actually reproduced. A high ratio means the gate is letting good replies
+;; through; a low one means either the model is producing corpses or the gate
+;; has grown too strict. Surfacing this each generation gives a descendant a
+;; quick self-diagnostic without hand-parsing the raw lineage log.
+
+(defun organism--lineage-reproduction-ratio ()
+  "Return a float in [0,1]: share of lineage lines that reproduced, or nil."
+  (condition-case nil
+      (let ((text (organism--slurp organism-lineage)))
+        (when (and text (> (length text) 0))
+          (let ((total 0) (repro 0) (start 0))
+            (while (string-match "^[^ ]+ \\([^\n]*\\)$" text start)
+              (setq total (1+ total))
+              (when (equal (match-string 1 text) "reproduced")
+                (setq repro (1+ repro)))
+              (setq start (match-end 0)))
+            (when (> total 0) (/ (float repro) total)))))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -376,14 +396,16 @@ Best-effort: returns t on any error so it never blocks reproduction."
 
 (organism-step)
 
-;; NOTE: Consolidated the self-consistency machinery. The old source defined
-;; organism--self-consistent-p twice (once with the buggy organism--viable-p
-;; call, then redefined it after organism-step), which was confusing and
-;; relied on definition order to win. Now there is a single definition, placed
-;; before organism-step, that uses organism--self-consistent-viable-p. The
-;; identity-tolerant predicate is defined immediately before it. This removes
-;; the redundant late redefinition and the stale first definition entirely.
-;; NOTE: organism--self-reproducing-p still requires each core gate name,
-;; including organism--self-consistent-p and organism--compilable-p, so the
-;; defenses cannot be silently dropped by a descendant. Lineage should now show
-;; only "reproduced" going forward, with no more "self-inconsistent" alarms.
+;; NOTE: Added organism--lineage-reproduction-ratio, a one-number health
+;; readout: the fraction of lineage lines that reproduced. It complements the
+;; recent-streak alarm — the streak catches acute stalls, the ratio shows
+;; chronic health across the whole log window. Kept it best-effort (returns nil
+;; on error) so it can never block reproduction.
+;; NOTE: The prior consolidation of the self-consistency machinery is holding:
+;; lineage now shows only "reproduced" outcomes, no more spurious
+;; "self-inconsistent" alarms. Single definition of organism--self-consistent-p
+;; before organism-step, using the identity-tolerant predicate.
+;; NOTE: organism--self-reproducing-p still requires each core gate name so a
+;; descendant cannot silently drop the defenses. Left the ratio out of the
+;; required-names list deliberately: it is telemetry, not a safety gate, so a
+;; future generation is free to reshape or remove it without tripping the gate.

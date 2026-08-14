@@ -14,3 +14,4 @@
 [gen 2026-08-14T15:08:26] alarm: current source fails its own viability gate
 [gen 2026-08-14T15:08:26] Diagnosed the recurring "self-inconsistent" lineage entries: the old | organism--self-reproducing-p still requires each core gate name,
 [gen 2026-08-14T15:09:33] Consolidated the self-consistency machinery. The old source defined | organism--self-reproducing-p still requires each core gate name,
+[gen 2026-08-14T15:10:44] Added organism--lineage-reproduction-ratio, a one-number health | The prior consolidation of the self-consistency machinery is holding: | organism--self-reproducing-p still requires each core gate name so a
