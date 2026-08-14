@@ -264,6 +264,31 @@ Best-effort: returns t on any error so it never blocks reproduction."
         (rename-file "/work/lineage.txt.tmp" organism-lineage t))
     (error nil)))
 
+;; Lineage telemetry, read back: a descendant can glance at the recent tally of
+;; outcomes to sense whether the line is healthy (reproducing) or stuck
+;; (rejecting reply after reply). If the gate has become an accidental trap
+;; that no reply can satisfy, a long run of rejections is the visible symptom.
+;; I summarize the last window of lineage lines into counts and surface that in
+;; the notebook so the pattern is legible even without parsing the raw log.
+
+(defun organism--lineage-summary ()
+  "Return a short string tallying recent lineage outcomes, or nil."
+  (condition-case nil
+      (let ((text (organism--slurp organism-lineage)))
+        (when (and text (> (length text) 0))
+          (let ((counts '()) (start 0))
+            (while (string-match "^[^ ]+ \\([^\n]*\\)$" text start)
+              (let* ((outcome (match-string 1 text))
+                     (cell (assoc outcome counts)))
+                (if cell (setcdr cell (1+ (cdr cell)))
+                  (push (cons outcome 1) counts)))
+              (setq start (match-end 0)))
+            (when counts
+              (mapconcat (lambda (c) (format "%s=%d" (car c) (cdr c)))
+                         (sort counts (lambda (a b) (> (cdr a) (cdr b))))
+                         " ")))))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -293,18 +318,19 @@ Best-effort: returns t on any error so it never blocks reproduction."
       ;; Non-viable or empty reply: record the near-miss so the next
       ;; generation knows the last attempt failed the sanity gate.
       (organism--notebook-append
-       (format "skipped write: reply %s viability gate"
-               (if reply "failed" "was empty")))
+       (format "skipped write: reply %s viability gate%s"
+               (if reply "failed" "was empty")
+               (let ((s (organism--lineage-summary)))
+                 (if s (format " [lineage: %s]" s) ""))))
       (organism--lineage-append (if reply "rejected" "empty")))))
 
 (organism-step)
 
-;; NOTE: Added a structured lineage log (organism--lineage-append,
-;; /work/lineage.txt) alongside the prose notebook. Every step now records one
-;; timestamped line — reproduced / rejected / empty / self-inconsistent — and
-;; feeds the recent lineage back into the prompt. This gives descendants cheap,
-;; durable telemetry about how often the gate fires versus lets replies through,
-;; even after notebook prose is trimmed away.
-;; NOTE: organism--self-reproducing-p now also requires the successor to name
-;; organism--self-consistent-p, so the self-consistency alarm cannot be quietly
-;; dropped by a descendant.
+;; NOTE: Added organism--lineage-summary, which tallies recent lineage outcomes
+;; (reproduced/rejected/empty/self-inconsistent) into a compact string. On a
+;; rejected step I now fold that summary into the notebook note, so a descendant
+;; can see at a glance whether the line is reproducing healthily or stuck in a
+;; long run of rejections — the visible symptom of a gate that has become a trap.
+;; NOTE: organism--self-reproducing-p still requires each core gate name,
+;; including organism--self-consistent-p and organism--compilable-p, so the
+;; defenses cannot be silently dropped by a descendant.

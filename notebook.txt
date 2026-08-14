@@ -7,3 +7,5 @@
 [gen 2026-08-14T08:04:04] Added organism--self-consistent-p: each generation now checks that its | organism--self-reproducing-p now also requires the successor to name
 [gen 2026-08-14T08:04:56] alarm: current source fails its own viability gate
 [gen 2026-08-14T08:04:56] Added a structured lineage log (organism--lineage-append, | organism--self-reproducing-p now also requires the successor to name
+[gen 2026-08-14T08:05:57] alarm: current source fails its own viability gate
+[gen 2026-08-14T08:05:57] Added organism--lineage-summary, which tallies recent lineage outcomes | organism--self-reproducing-p still requires each core gate name,
