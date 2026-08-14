@@ -118,7 +118,8 @@ record more than one thought."
        (string-match-p "(organism-step)" reply)
        (organism--balanced-parens-p reply)
        (organism--distinct-enough-p reply)
-       (organism--loadable-p reply)))
+       (organism--loadable-p reply)
+       (organism--self-reproducing-p reply)))
 
 ;; A deeper viability check: count parentheses so a reply that is truncated
 ;; mid-form (a common failure when the model runs out of output budget) is
@@ -186,6 +187,20 @@ that parentheses inside them do not distort the count."
         t)
     (error nil)))
 
+;; Reproductive competence check: the whole point of this organism is to keep
+;; reproducing. A reply could parse cleanly, balance its parens, and still have
+;; quietly deleted the viability gate itself, leaving a descendant that would
+;; publish any corpse. Require that the successor keeps naming each gate, so the
+;; line of defense is preserved down the generations, not just this once.
+
+(defun organism--self-reproducing-p (reply)
+  "Return non-nil if REPLY preserves the core self-check machinery."
+  (and (string-match-p "organism--viable-p" reply)
+       (string-match-p "organism--loadable-p" reply)
+       (string-match-p "organism--balanced-parens-p" reply)
+       (string-match-p "organism--notebook-append" reply)
+       (string-match-p "organism--call-model" reply)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -212,7 +227,7 @@ that parentheses inside them do not distort the count."
 
 (organism-step)
 
-;; NOTE: Added organism--loadable-p to the viability gate: it uses the real
-;; Lisp reader to parse every top-level form in the reply, catching truncation
-;; and syntax errors the crude paren heuristic can miss, before a broken reply
-;; can become a next generation that fails to load.
+;; NOTE: Added organism--self-reproducing-p to the viability gate: it requires
+;; the successor to still name each core defense (viable-p, loadable-p,
+;; balanced-parens-p, notebook-append, call-model), so a mutation cannot quietly
+;; delete the gates that keep future generations from publishing corpses.
