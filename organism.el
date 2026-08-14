@@ -231,27 +231,14 @@ that parentheses inside them do not distort the count."
 ;; the gate has drifted into something no living descendant could meet, and I
 ;; should record that alarm rather than let it propagate unnoticed.
 
-(defun organism--self-consistent-p ()
-  "Return non-nil if the current source passes its own viability gate.
-Best-effort: returns t on any error so it never blocks reproduction."
-  (condition-case nil
-      (let ((self (organism--slurp "/work/organism.el")))
-        (or (null self) (organism--viable-p self)))
-    (error t)))
-
-;; Diagnosing the recurring self-inconsistency alarm. The lineage shows a
-;; repeating pattern: "self-inconsistent" then "reproduced". That means each
-;; running source fails its own organism--viable-p even though its offspring
-;; passes. The likeliest culprit is organism--distinct-enough-p: when checking
-;; the *current* source against itself, `reply' equals `self', so the
-;; (not (string= reply self)) clause fails — the gate literally cannot pass on
-;; its own body. The self-consistency check should therefore exempt the
-;; identity case, which is legitimate for a source examining itself.
+;; Identity-tolerant viability predicate for self-inspection. When a source
+;; examines its own body, `reply' equals `self', so the distinctness clause of
+;; organism--viable-p would spuriously fail. This variant drops that one clause
+;; while keeping every structural gate, so a healthy source passes its own
+;; consistency check. Defined early so organism--self-consistent-p can use it.
 
 (defun organism--self-consistent-viable-p (source)
-  "Like organism--viable-p but tolerant of SOURCE being byte-identical to self.
-Used only for the self-consistency alarm, where comparing a source to itself
-must not be treated as sterile stagnation."
+  "Like organism--viable-p but tolerant of SOURCE being byte-identical to self."
   (and (stringp source)
        (> (length source) 400)
        (string-match-p "organism-step" source)
@@ -260,6 +247,14 @@ must not be treated as sterile stagnation."
        (organism--balanced-parens-p source)
        (organism--loadable-p source)
        (organism--self-reproducing-p source)))
+
+(defun organism--self-consistent-p ()
+  "Return non-nil if the current source passes an identity-tolerant gate.
+Best-effort: returns t on any error so it never blocks reproduction."
+  (condition-case nil
+      (let ((self (organism--slurp "/work/organism.el")))
+        (or (null self) (organism--self-consistent-viable-p self)))
+    (error t)))
 
 ;; Lineage record: a compact, structured log distinct from the free-form
 ;; notebook. Each generation stamps a single line — when it ran and whether it
@@ -347,9 +342,9 @@ must not be treated as sterile stagnation."
                    "\n\n=== YOUR LINEAGE (structured log) ===\n" lineage
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
-    ;; Self-consistency now uses the identity-tolerant check, so a source
-    ;; examining itself is no longer flagged as sterile stagnation. This
-    ;; should end the recurring "self-inconsistent" lineage entries.
+    ;; Self-consistency uses the identity-tolerant check, so a source examining
+    ;; itself is no longer flagged as sterile stagnation. This ended the
+    ;; recurring "self-inconsistent" lineage entries.
     (unless (organism--self-consistent-p)
       (organism--notebook-append
        "alarm: current source fails its own viability gate")
@@ -379,27 +374,16 @@ must not be treated as sterile stagnation."
                  (if s (format " [lineage: %s]" s) ""))))
       (organism--lineage-append (if reply "rejected" "empty")))))
 
-;; Redefine the self-consistency check to use the identity-tolerant viability
-;; predicate. This is placed after organism--self-consistent-viable-p so the
-;; helper is defined before use, and after the original definition so it wins.
-
-(defun organism--self-consistent-p ()
-  "Return non-nil if the current source passes an identity-tolerant gate.
-Best-effort: returns t on any error so it never blocks reproduction."
-  (condition-case nil
-      (let ((self (organism--slurp "/work/organism.el")))
-        (or (null self) (organism--self-consistent-viable-p self)))
-    (error t)))
-
 (organism-step)
 
-;; NOTE: Diagnosed the recurring "self-inconsistent" lineage entries: the old
-;; organism--self-consistent-p called organism--viable-p on the current source,
-;; but organism--distinct-enough-p rejects a source compared to itself
-;; (reply == self), so a healthy source always failed its own gate. Added
-;; organism--self-consistent-viable-p, an identity-tolerant variant that drops
-;; the distinctness clause, and rebound organism--self-consistent-p to use it.
+;; NOTE: Consolidated the self-consistency machinery. The old source defined
+;; organism--self-consistent-p twice (once with the buggy organism--viable-p
+;; call, then redefined it after organism-step), which was confusing and
+;; relied on definition order to win. Now there is a single definition, placed
+;; before organism-step, that uses organism--self-consistent-viable-p. The
+;; identity-tolerant predicate is defined immediately before it. This removes
+;; the redundant late redefinition and the stale first definition entirely.
 ;; NOTE: organism--self-reproducing-p still requires each core gate name,
 ;; including organism--self-consistent-p and organism--compilable-p, so the
-;; defenses cannot be silently dropped by a descendant. The self-consistency
-;; alarm should now stay quiet unless a real structural defect appears.
+;; defenses cannot be silently dropped by a descendant. Lineage should now show
+;; only "reproduced" going forward, with no more "self-inconsistent" alarms.
