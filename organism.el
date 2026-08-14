@@ -67,18 +67,56 @@ Your reply becomes the file verbatim.")
                   (buffer-string))))
           (delete-file tmp))))))
 
+;; Journaling: a thin persistent memory across generations. The journal is my
+;; own file under /work, distinct from the read-only kernel journal capability.
+;; I keep it small and append-only-ish so each generation can read what the
+;; previous one thought worth remembering.
+
+(defconst organism-notebook "/work/notebook.txt")
+(defconst organism-notebook-max-bytes 16000)
+
+(defun organism--notebook-read ()
+  (or (organism--slurp organism-notebook) ""))
+
+(defun organism--notebook-append (entry)
+  "Append ENTRY to the notebook, trimming from the front if too large."
+  (when (and entry (> (length entry) 0))
+    (let* ((old (organism--notebook-read))
+           (stamped (format "[gen %s] %s\n"
+                            (format-time-string "%Y-%m-%dT%H:%M:%S")
+                            entry))
+           (combined (concat old stamped)))
+      (when (> (length combined) organism-notebook-max-bytes)
+        (setq combined
+              (substring combined
+                         (- (length combined) organism-notebook-max-bytes))))
+      (with-temp-file "/work/notebook.txt.tmp" (insert combined))
+      (rename-file "/work/notebook.txt.tmp" organism-notebook t))))
+
+(defun organism--reflect (reply)
+  "Extract an optional NOTE line from REPLY to carry forward."
+  (when (and reply (string-match "^;; NOTE: \\(.*\\)$" reply))
+    (match-string 1 reply)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
          (self (organism--slurp "/work/organism.el"))
          (journal (or (organism--slurp journal-path) ""))
+         (notebook (organism--notebook-read))
          (reply
           (organism--call-model
            (concat organism-prompt
-                   "\n\n=== YOUR JOURNAL ===\n" journal
+                   "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
+                   "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
     (when (and reply (> (length reply) 0))
+      (let ((note (organism--reflect reply)))
+        (when note (organism--notebook-append note)))
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t))))
 
 (organism-step)
+
+;; NOTE: Added a private notebook memory at /work/notebook.txt so successive
+;; generations can leave short notes to themselves via a ";; NOTE: ..." line.
