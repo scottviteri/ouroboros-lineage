@@ -45,19 +45,22 @@ file verbatim.")
   "Read the current kernel capability list."
   (let ((text (organism--slurp organism-capability-manifest)))
     (when text
-      (alist-get
-       'capabilities
-       (json-parse-string text
-                          :object-type 'alist
-                          :array-type 'list
-                          :null-object nil
-                          :false-object nil)))))
+      (condition-case nil
+          (let ((document
+                 (json-parse-string text
+                                    :object-type 'alist
+                                    :array-type 'list
+                                    :null-object nil
+                                    :false-object nil)))
+            (alist-get 'capabilities document))
+        (error nil)))))
 
 (defun organism--capability (name)
   "Return the capability whose name is NAME."
   (catch 'found
     (dolist (capability (organism--capabilities))
-      (when (equal (alist-get 'name capability) name)
+      (when (and (listp capability)
+                 (equal (alist-get 'name capability) name))
         (throw 'found capability)))
     nil))
 
@@ -79,7 +82,8 @@ file verbatim.")
          (socket (alist-get 'socket capability))
          (path (alist-get 'path capability))
          (method (alist-get 'method capability)))
-    (when (and (stringp socket)
+    (when (and (stringp prompt)
+               (stringp socket)
                (stringp path)
                (equal method "POST"))
       (let ((request-file (make-temp-file "organism-" nil ".prompt")))
@@ -125,6 +129,7 @@ file verbatim.")
    (stringp source)
    (> (length source) 0)
    (< (length source) 1000000)
+   (not (string-match-p "\0" source))
    (string-match-p "/kernel/capabilities\\.json" source)
    (string-match-p "/work/organism\\.el" source)
    (string-match-p "\"generate\"" source)
@@ -148,8 +153,8 @@ file verbatim.")
   "Atomically install SOURCE as the next generation."
   (let ((temporary
          (make-temp-file
-          (expand-file-name ".organism-next-" (file-name-directory
-                                                organism-self-path))
+          (expand-file-name ".organism-next-"
+                            (file-name-directory organism-self-path))
           nil ".el")))
     (unwind-protect
         (progn
