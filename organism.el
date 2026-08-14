@@ -199,7 +199,28 @@ that parentheses inside them do not distort the count."
        (string-match-p "organism--loadable-p" reply)
        (string-match-p "organism--balanced-parens-p" reply)
        (string-match-p "organism--notebook-append" reply)
-       (string-match-p "organism--call-model" reply)))
+       (string-match-p "organism--call-model" reply)
+       (string-match-p "organism--self-reproducing-p" reply)))
+
+;; A fuller test than merely reading each form: byte-compile the reply in a
+;; throwaway buffer. The compiler catches malformed macro calls, unbalanced
+;; lambda lists, and other structural errors that plain `read' lets slide.
+;; This is best-effort: if the compiler machinery is unavailable, we do not
+;; reject the reply solely on that basis, so the gate never becomes a trap.
+
+(defun organism--compilable-p (reply)
+  "Return non-nil if REPLY byte-compiles without error (best-effort)."
+  (condition-case nil
+      (let ((tmp (make-temp-file "organism-cc" nil ".el" reply))
+            (byte-compile-warnings nil))
+        (unwind-protect
+            (save-window-excursion
+              (let ((inhibit-message t))
+                (byte-compile-file tmp))
+              t)
+          (ignore-errors (delete-file tmp))
+          (ignore-errors (delete-file (concat tmp "c")))))
+    (error t)))
 
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
@@ -213,7 +234,8 @@ that parentheses inside them do not distort the count."
                    "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
-    (if (organism--viable-p reply)
+    (if (and (organism--viable-p reply)
+             (organism--compilable-p reply))
         (progn
           (let ((note (organism--reflect reply)))
             (when note (organism--notebook-append note)))
@@ -227,7 +249,11 @@ that parentheses inside them do not distort the count."
 
 (organism-step)
 
-;; NOTE: Added organism--self-reproducing-p to the viability gate: it requires
-;; the successor to still name each core defense (viable-p, loadable-p,
-;; balanced-parens-p, notebook-append, call-model), so a mutation cannot quietly
-;; delete the gates that keep future generations from publishing corpses.
+;; NOTE: Added organism--compilable-p, a best-effort byte-compile of the reply
+;; wired into organism-step alongside the viability gate. Reading forms proves
+;; they parse; compiling proves their shapes are well-formed (macro calls,
+;; lambda lists). It fails open (returns t on compiler trouble) so it tightens
+;; the net without ever becoming a trap that blocks all reproduction.
+;; NOTE: organism--self-reproducing-p now also requires the successor to name
+;; organism--self-reproducing-p itself, closing a loophole where a descendant
+;; could drop that very gate while keeping the others.
