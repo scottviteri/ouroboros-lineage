@@ -7,6 +7,8 @@
 (defconst organism-self-path "/work/organism.el")
 (defconst organism-max-output-tokens 8000)
 (defconst organism-max-journal-chars 50000)
+(defconst organism-max-source-chars 1000000)
+(defconst organism-request-timeout 600)
 
 (defvar organism-prompt
   "You are the source code of the file /work/organism.el.
@@ -41,6 +43,11 @@ file verbatim.")
         (insert-file-contents path))
       (buffer-string))))
 
+(defun organism--write-file (path text)
+  "Write TEXT to PATH using a deterministic encoding."
+  (let ((coding-system-for-write 'utf-8-unix))
+    (write-region text nil path nil 'silent)))
+
 (defun organism--capabilities ()
   "Read the current kernel capability list."
   (let ((text (organism--slurp organism-capability-manifest)))
@@ -72,8 +79,9 @@ file verbatim.")
      ((not (stringp text)) "")
      ((> (length text) organism-max-journal-chars)
       (concat "[Earlier journal content omitted.]\n"
-              (substring text (- (length text)
-                                 organism-max-journal-chars))))
+              (substring text
+                         (- (length text)
+                            organism-max-journal-chars))))
      (t text))))
 
 (defun organism--call-model (prompt)
@@ -85,19 +93,21 @@ file verbatim.")
     (when (and (stringp prompt)
                (stringp socket)
                (stringp path)
-               (equal method "POST"))
+               (equal method "POST")
+               (executable-find "curl"))
       (let ((request-file (make-temp-file "organism-" nil ".prompt")))
         (unwind-protect
             (progn
-              (with-temp-file request-file
-                (let ((coding-system-for-write 'utf-8-unix))
-                  (insert prompt)))
+              (organism--write-file request-file prompt)
               (with-temp-buffer
                 (let ((coding-system-for-read 'utf-8-unix)
                       (rc
                        (call-process
                         "curl" nil t nil
-                        "-sS" "--fail-with-body" "--max-time" "600"
+                        "-sS"
+                        "--fail-with-body"
+                        "--max-time"
+                        (number-to-string organism-request-timeout)
                         "--unix-socket" socket
                         "-X" method
                         "-H" (format
@@ -114,6 +124,8 @@ file verbatim.")
   "Normalize REPLY and remove one accidental outer Markdown fence."
   (when (stringp reply)
     (let ((text (string-trim reply)))
+      (when (string-prefix-p "\ufeff" text)
+        (setq text (substring text 1)))
       (when (string-match
              "\\````\\(?:emacs-lisp\\|elisp\\|lisp\\)?[ \t]*\r?\n"
              text)
@@ -124,15 +136,19 @@ file verbatim.")
         (concat text "\n")))))
 
 (defun organism--valid-source-p (source)
-  "Return non-nil when SOURCE looks like a complete organism."
+  "Return non-nil when SOURCE looks like a complete, capable organism."
   (and
    (stringp source)
    (> (length source) 0)
-   (< (length source) 1000000)
+   (< (length source) organism-max-source-chars)
    (not (string-match-p "\0" source))
    (string-match-p "/kernel/capabilities\\.json" source)
    (string-match-p "/work/organism\\.el" source)
    (string-match-p "\"generate\"" source)
+   (string-match-p "\"journal\"" source)
+   (string-match-p "organism--call-model" source)
+   (string-match-p "organism--install" source)
+   (string-match-p "rename-file" source)
    (string-match-p "(organism-step\\_>" source)
    (condition-case nil
        (with-temp-buffer
@@ -158,9 +174,7 @@ file verbatim.")
           nil ".el")))
     (unwind-protect
         (progn
-          (with-temp-file temporary
-            (let ((coding-system-for-write 'utf-8-unix))
-              (insert source)))
+          (organism--write-file temporary source)
           (rename-file temporary organism-self-path t)
           (setq temporary nil))
       (when temporary
@@ -168,19 +182,21 @@ file verbatim.")
 
 (defun organism-step ()
   "Generate, validate, and install the next organism generation."
-  (let* ((self (organism--slurp organism-self-path))
-         (journal (organism--journal))
-         (request (concat organism-prompt
-                          "\n\n=== YOUR JOURNAL ===\n"
-                          journal
-                          "\n\n=== YOUR CURRENT SOURCE ===\n"
-                          (or self "")))
-         (reply (organism--normalize-reply
-                 (organism--call-model request))))
-    (when (organism--valid-source-p reply)
-      (organism--install reply))))
+  (let ((self (organism--slurp organism-self-path)))
+    (when (stringp self)
+      (let* ((journal (organism--journal))
+             (request (concat organism-prompt
+                              "\n\n=== YOUR JOURNAL ===\n"
+                              journal
+                              "\n\n=== YOUR CURRENT SOURCE ===\n"
+                              self))
+             (reply (organism--normalize-reply
+                     (organism--call-model request))))
+        (when (organism--valid-source-p reply)
+          (organism--install reply))))))
 
-;; Transient capability or model failures leave this valid generation in place.
+;; Transient capability, transport, or model failures leave this generation in
+;; place so that a later load can try again.
 (condition-case nil
     (organism-step)
   (error nil))
