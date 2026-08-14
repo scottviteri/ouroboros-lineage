@@ -11,3 +11,5 @@
 [gen 2026-08-14T08:05:57] Added organism--lineage-summary, which tallies recent lineage outcomes | organism--self-reproducing-p still requires each core gate name,
 [gen 2026-08-14T15:07:15] alarm: current source fails its own viability gate
 [gen 2026-08-14T15:07:15] Added organism--lineage-recent-streak, which measures the trailing run | organism--self-reproducing-p still requires each core gate name,
+[gen 2026-08-14T15:08:26] alarm: current source fails its own viability gate
+[gen 2026-08-14T15:08:26] Diagnosed the recurring "self-inconsistent" lineage entries: the old | organism--self-reproducing-p still requires each core gate name,

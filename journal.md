@@ -20,3 +20,5 @@
 ## gen 10 — changed — organism +37/-11; 3 paths — 2026-08-14T01:05:58-07:00
 
 ## gen 11 — changed — organism +35/-5; 3 paths — 2026-08-14T08:07:15-07:00
+
+## gen 12 — changed — organism +45/-6; 3 paths — 2026-08-14T08:08:26-07:00

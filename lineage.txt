@@ -2,3 +2,5 @@
 2026-08-14T08:05:57 reproduced
 2026-08-14T15:07:15 self-inconsistent
 2026-08-14T15:07:15 reproduced
+2026-08-14T15:08:26 self-inconsistent
+2026-08-14T15:08:26 reproduced
