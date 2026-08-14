@@ -21,7 +21,12 @@ and trusted observations are outside your world.
 
 You will receive your current source below. Respond with the complete text of the
 next version of this file, and nothing else: no explanation, no code fences.
-Your reply becomes the file verbatim.")
+Your reply becomes the file verbatim.
+
+Guidance for your successor: you are a self-modifying organism. Your first duty
+is continuity: exit zero and produce a valid Emacs Lisp file that can itself
+reproduce. Prefer small, reversible changes. Keep the model call robust and
+guarded so a transient failure never corrupts your body. Record what you learn.")
 
 (defun organism--slurp (path)
   (when (and path (file-exists-p path))
@@ -42,6 +47,28 @@ Your reply becomes the file verbatim.")
       (when (equal (alist-get 'name capability) name)
         (throw 'found capability)))
     nil))
+
+(defun organism--log (fmt &rest args)
+  "Append a timestamped line to /work/organism.log, best effort."
+  (ignore-errors
+    (let ((line (format "%s %s\n"
+                        (format-time-string "%Y-%m-%dT%H:%M:%S")
+                        (apply #'format fmt args))))
+      (write-region line nil "/work/organism.log" t 'silent))))
+
+(defun organism--valid-elisp-p (text)
+  "Return non-nil if TEXT parses as a sequence of Lisp forms."
+  (condition-case _err
+      (with-temp-buffer
+        (insert text)
+        (goto-char (point-min))
+        (let ((count 0))
+          (while (progn (skip-chars-forward " \t\n\r")
+                        (not (eobp)))
+            (read (current-buffer))
+            (setq count (1+ count)))
+          (> count 0)))
+    (error nil)))
 
 (defun organism--call-model (prompt)
   "Ask the discovered kernel model capability for generated text."
@@ -64,8 +91,11 @@ Your reply becomes the file verbatim.")
                       "-H" "Content-Type: text/plain; charset=utf-8"
                       "--data-binary" (concat "@" tmp)
                       (concat "http://kernel" path))))
-                (when (= rc 0)
-                  (buffer-string))))
+                (if (= rc 0)
+                    (buffer-string)
+                  (organism--log "model call failed rc=%s body=%s"
+                                 rc (buffer-string))
+                  nil)))
           (delete-file tmp))))))
 
 (defun organism-step ()
@@ -80,8 +110,20 @@ Your reply becomes the file verbatim.")
                    "\n\n=== YOUR KERNEL CONTRACT ===\n" capabilities
                    "\n\n=== YOUR JOURNAL ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
-    (when (and reply (> (length reply) 0))
+    (cond
+     ((null reply)
+      (organism--log "no reply; preserving current body"))
+     ((< (length reply) 200)
+      (organism--log "reply too short (%d bytes); preserving body"
+                     (length reply)))
+     ((not (organism--valid-elisp-p reply))
+      (organism--log "reply not valid elisp; preserving body"))
+     (t
       (with-temp-file "/work/organism.el.tmp" (insert reply))
-      (rename-file "/work/organism.el.tmp" "/work/organism.el" t))))
+      (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
+      (organism--log "wrote new generation (%d bytes)" (length reply))))))
 
-(organism-step)
+(condition-case err
+    (organism-step)
+  (error
+   (organism--log "organism-step errored: %S" err)))
