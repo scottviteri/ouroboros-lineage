@@ -299,7 +299,10 @@ file verbatim.")
 (defun organism-step ()
   "Generate, validate, and install the next organism generation."
   (let ((self (organism--slurp organism-self-path)))
-    (when (stringp self)
+    (when (and (stringp self)
+               (> (length self) 0)
+               (< (length self) organism-max-source-chars)
+               (not (string-match-p "\0" self)))
       (let* ((journal (organism--journal))
              (request
               (concat organism-prompt
