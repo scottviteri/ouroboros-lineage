@@ -131,6 +131,10 @@ so a well-formed but crippled reply cannot silently end the lineage."
                      (length reply)))
      ((not (organism--sanity-check reply))
       (organism--log "reply failed sanity check; preserving body"))
+     ((and self (>= (length reply) (* 4 (length self))))
+      ;; guard against runaway growth: a viable edit should not quadruple us
+      (organism--log "reply suspiciously large (%d vs self %d); preserving body"
+                     (length reply) (length self)))
      (t
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
