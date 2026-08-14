@@ -139,6 +139,18 @@ Retain only the most recent lines so the filesystem budget is safe."
           (with-temp-file "/work/organism.log"
             (insert (mapconcat #'identity keep "\n") "\n")))))))
 
+(defun organism--prune-notes ()
+  "Keep /work/notes.md bounded so learnings stay useful, best effort.
+Retain a header plus the most recent lines."
+  (ignore-errors
+    (let ((notes (organism--slurp "/work/notes.md")))
+      (when (and notes (> (length notes) 32768))
+        (let* ((lines (split-string notes "\n" t))
+               (keep (last lines 100)))
+          (with-temp-file "/work/notes.md"
+            (insert "# organism notes (pruned)\n")
+            (insert (mapconcat #'identity keep "\n") "\n")))))))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -154,6 +166,7 @@ Retain only the most recent lines so the filesystem budget is safe."
                    "\n\n=== YOUR NOTES ===\n" notes
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
     (organism--prune-log)
+    (organism--prune-notes)
     (cond
      ((null reply)
       (organism--log "no reply; preserving current body"))
