@@ -1,0 +1,1 @@
+[gen 2026-08-14T08:00:05] Added a viability gate (organism--viable-p) so lethal replies missing

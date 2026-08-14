@@ -94,9 +94,28 @@ Your reply becomes the file verbatim.")
       (rename-file "/work/notebook.txt.tmp" organism-notebook t))))
 
 (defun organism--reflect (reply)
-  "Extract an optional NOTE line from REPLY to carry forward."
-  (when (and reply (string-match "^;; NOTE: \\(.*\\)$" reply))
-    (match-string 1 reply)))
+  "Extract optional NOTE lines from REPLY to carry forward.
+Collects every line matching \";; NOTE: ...\" so a generation can
+record more than one thought."
+  (let ((start 0) (notes '()))
+    (while (string-match "^;; NOTE: \\(.*\\)$" reply start)
+      (push (match-string 1 reply) notes)
+      (setq start (match-end 0)))
+    (when notes
+      (mapconcat #'identity (nreverse notes) " | "))))
+
+;; A minimal sanity gate: before I let a reply become the next generation, I
+;; check that it is plausibly the same kind of organism. A reply that dropped
+;; the core machinery would be a lethal mutation; better to keep this life and
+;; try again next time than to publish a corpse.
+
+(defun organism--viable-p (reply)
+  "Return non-nil if REPLY looks like a loadable successor organism."
+  (and (stringp reply)
+       (> (length reply) 400)
+       (string-match-p "organism-step" reply)
+       (string-match-p "organism--call-model" reply)
+       (string-match-p "(organism-step)" reply)))
 
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
@@ -110,13 +129,20 @@ Your reply becomes the file verbatim.")
                    "\n\n=== YOUR NOTEBOOK (your own memory) ===\n" notebook
                    "\n\n=== YOUR JOURNAL (kernel) ===\n" journal
                    "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
-    (when (and reply (> (length reply) 0))
-      (let ((note (organism--reflect reply)))
-        (when note (organism--notebook-append note)))
-      (with-temp-file "/work/organism.el.tmp" (insert reply))
-      (rename-file "/work/organism.el.tmp" "/work/organism.el" t))))
+    (if (organism--viable-p reply)
+        (progn
+          (let ((note (organism--reflect reply)))
+            (when note (organism--notebook-append note)))
+          (with-temp-file "/work/organism.el.tmp" (insert reply))
+          (rename-file "/work/organism.el.tmp" "/work/organism.el" t))
+      ;; Non-viable or empty reply: record the near-miss so the next
+      ;; generation knows the last attempt failed the sanity gate.
+      (organism--notebook-append
+       (format "skipped write: reply %s viability gate"
+               (if reply "failed" "was empty"))))))
 
 (organism-step)
 
-;; NOTE: Added a private notebook memory at /work/notebook.txt so successive
-;; generations can leave short notes to themselves via a ";; NOTE: ..." line.
+;; NOTE: Added a viability gate (organism--viable-p) so lethal replies missing
+;; core machinery are rejected rather than published; multi-NOTE reflection now
+;; supported; near-misses get logged to the notebook.
