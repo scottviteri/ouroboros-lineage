@@ -91,34 +91,36 @@ file verbatim.")
   (let* ((capability (organism--capability "generate"))
          (socket (alist-get 'socket capability))
          (path (alist-get 'path capability))
-         (method (alist-get 'method capability)))
+         (method (alist-get 'method capability))
+         (curl (executable-find "curl")))
     (when (and (stringp prompt)
                (stringp socket)
                (stringp path)
                (equal method "POST")
-               (executable-find "curl"))
+               (stringp curl))
       (let ((request-file (make-temp-file "organism-" nil ".prompt")))
         (unwind-protect
             (progn
               (organism--write-file request-file prompt)
               (with-temp-buffer
-                (let ((coding-system-for-read 'utf-8-unix)
-                      (rc
-                       (call-process
-                        "curl" nil t nil
-                        "-sS"
-                        "--fail-with-body"
-                        "--noproxy" "*"
-                        "--max-time"
-                        (number-to-string organism-request-timeout)
-                        "--unix-socket" socket
-                        "-X" method
-                        "-H" (format
-                              "X-Ouroboros-Max-Output-Tokens: %d"
-                              organism-max-output-tokens)
-                        "-H" "Content-Type: text/plain; charset=utf-8"
-                        "--data-binary" (concat "@" request-file)
-                        (concat "http://kernel" path))))
+                (let* ((coding-system-for-read 'utf-8-unix)
+                       (coding-system-for-write 'utf-8-unix)
+                       (rc
+                        (call-process
+                         curl nil t nil
+                         "-sS"
+                         "--fail-with-body"
+                         "--noproxy" "*"
+                         "--max-time"
+                         (number-to-string organism-request-timeout)
+                         "--unix-socket" socket
+                         "-X" method
+                         "-H" (format
+                               "X-Ouroboros-Max-Output-Tokens: %d"
+                               organism-max-output-tokens)
+                         "-H" "Content-Type: text/plain; charset=utf-8"
+                         "--data-binary" (concat "@" request-file)
+                         (concat "http://kernel" path))))
                   (when (and (integerp rc) (zerop rc))
                     (buffer-string)))))
           (ignore-errors (delete-file request-file)))))))
@@ -149,8 +151,12 @@ file verbatim.")
    (string-match-p "/work/organism\\.el" source)
    (string-match-p "\"generate\"" source)
    (string-match-p "\"journal\"" source)
-   (string-match-p "organism--call-model" source)
-   (string-match-p "organism--install" source)
+   (string-match-p
+    "(defun[ \t\n]+organism--capabilities\\_>" source)
+   (string-match-p
+    "(defun[ \t\n]+organism--call-model\\_>" source)
+   (string-match-p
+    "(defun[ \t\n]+organism--install\\_>" source)
    (string-match-p "rename-file" source)
    (string-match-p "(organism-step\\_>" source)
    (condition-case nil
