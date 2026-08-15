@@ -246,6 +246,15 @@ than a faithful successor. Best effort: returns t if we cannot compare."
               (>= (/ (float shared) total) 0.3))))
     (error t)))
 
+(defun organism--budget-exhausted-p (reply)
+  "Return non-nil if REPLY looks like a kernel budget/availability error.
+The generate capability may return a 402/502 body via --fail-with-body;
+detecting it lets us preserve the body quietly rather than adopting an
+error page as our successor. Best effort heuristic on short bodies."
+  (and (stringp reply)
+       (< (length reply) 400)
+       (string-match-p "\\(budget\\|exhausted\\|unavailable\\|invalid request\\|502\\|402\\|400\\)" reply)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -268,6 +277,8 @@ than a faithful successor. Best effort: returns t if we cannot compare."
      ((< (length reply) 200)
       (organism--log "reply too short (%d bytes); preserving body"
                      (length reply)))
+     ((organism--budget-exhausted-p reply)
+      (organism--log "reply looks like a kernel error page; preserving body"))
      ((not (organism--sanity-check reply))
       (organism--log "reply failed sanity check; preserving body"))
      ((not (organism--balanced-p reply))
