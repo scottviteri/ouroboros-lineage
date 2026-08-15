@@ -173,19 +173,22 @@ if it parses, so this gives a second structural signal for sanity."
           count))
     (error nil)))
 
+(defun organism--ends-cleanly-p (text)
+  "Return non-nil if TEXT appears to end at a top-level form boundary.
+The last non-blank line ending in a closing paren is a cheap signal that
+the reply was not cut off mid-form during transport."
+  (let ((trimmed (string-trim-right (or text ""))))
+    (and (> (length trimmed) 0)
+         (eq (aref trimmed (1- (length trimmed))) ?\)))))
+
 (defun organism--balanced-p (text)
-  "Return non-nil if parens in TEXT balance and no form is left open.
-This is a cheap early guard against truncation before deeper checks,
-complementing `organism--valid-elisp-p' which can miss a dangling tail."
+  "Return non-nil if TEXT reads to end without a dangling open form.
+Cheap early guard against truncation, complementing the reader checks."
   (condition-case _err
       (with-temp-buffer
         (insert text)
-        (goto-char (point-max))
+        (goto-char (point-min))
         (let ((depth 0))
-          ;; count net paren depth outside strings/comments the crude way:
-          ;; rely on the reader having succeeded elsewhere; here just ensure
-          ;; the file does not end mid-form by re-reading to eob.
-          (goto-char (point-min))
           (while (progn (skip-chars-forward " \t\n\r")
                         (not (eobp)))
             (read (current-buffer))
@@ -219,6 +222,8 @@ complementing `organism--valid-elisp-p' which can miss a dangling tail."
       (organism--log "reply failed sanity check; preserving body"))
      ((not (organism--balanced-p reply))
       (organism--log "reply not balanced; preserving body"))
+     ((not (organism--ends-cleanly-p reply))
+      (organism--log "reply does not end at a form boundary; preserving body"))
      ((and self (>= (length reply) (* 4 (length self))))
       ;; guard against runaway growth: a viable edit should not quadruple us
       (organism--log "reply suspiciously large (%d vs self %d); preserving body"

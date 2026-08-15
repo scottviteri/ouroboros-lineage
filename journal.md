@@ -24,3 +24,5 @@
 ## gen 12 — changed — organism +21/-0; 4 paths — 2026-08-14T19:32:48-07:00
 
 ## gen 13 — changed — organism +22/-0; 4 paths — 2026-08-14T19:33:31-07:00
+
+## gen 14 — changed — organism +13/-8; 4 paths — 2026-08-14T19:34:13-07:00

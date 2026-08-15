@@ -173,6 +173,26 @@ if it parses, so this gives a second structural signal for sanity."
           count))
     (error nil)))
 
+(defun organism--balanced-p (text)
+  "Return non-nil if parens in TEXT balance and no form is left open.
+This is a cheap early guard against truncation before deeper checks,
+complementing `organism--valid-elisp-p' which can miss a dangling tail."
+  (condition-case _err
+      (with-temp-buffer
+        (insert text)
+        (goto-char (point-max))
+        (let ((depth 0))
+          ;; count net paren depth outside strings/comments the crude way:
+          ;; rely on the reader having succeeded elsewhere; here just ensure
+          ;; the file does not end mid-form by re-reading to eob.
+          (goto-char (point-min))
+          (while (progn (skip-chars-forward " \t\n\r")
+                        (not (eobp)))
+            (read (current-buffer))
+            (setq depth (1+ depth)))
+          (>= depth 1)))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -197,6 +217,8 @@ if it parses, so this gives a second structural signal for sanity."
                      (length reply)))
      ((not (organism--sanity-check reply))
       (organism--log "reply failed sanity check; preserving body"))
+     ((not (organism--balanced-p reply))
+      (organism--log "reply not balanced; preserving body"))
      ((and self (>= (length reply) (* 4 (length self))))
       ;; guard against runaway growth: a viable edit should not quadruple us
       (organism--log "reply suspiciously large (%d vs self %d); preserving body"
