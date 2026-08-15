@@ -1,0 +1,1 @@
+- 2026-08-15T04:07:44Z gen 0: candidate REJECTED (17757 bytes, parses=no); source unchanged
