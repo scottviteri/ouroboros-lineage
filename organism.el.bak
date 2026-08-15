@@ -151,6 +151,12 @@ Retain a header plus the most recent lines."
             (insert "# organism notes (pruned)\n")
             (insert (mapconcat #'identity keep "\n") "\n")))))))
 
+(defun organism--edit-distance-note (self reply)
+  "Return a short human note describing the size change from SELF to REPLY."
+  (let ((old (length (or self "")))
+        (new (length (or reply ""))))
+    (format "delta %+d bytes (%d -> %d)" (- new old) old new)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -193,10 +199,10 @@ Retain a header plus the most recent lines."
       (organism--backup-self self)
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
-      (organism--log "wrote new generation (%d bytes)" (length reply))
+      (organism--log "wrote new generation (%s)"
+                     (organism--edit-distance-note self reply))
       (organism--record-journal
-       (format "grew from %d to %d bytes"
-               (length (or self "")) (length reply)))))))
+       (organism--edit-distance-note self reply))))))
 
 (condition-case err
     (organism-step)

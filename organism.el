@@ -157,6 +157,22 @@ Retain a header plus the most recent lines."
         (new (length (or reply ""))))
     (format "delta %+d bytes (%d -> %d)" (- new old) old new)))
 
+(defun organism--count-forms (text)
+  "Return the number of top-level Lisp forms in TEXT, or nil on error.
+A successor with far fewer forms than we have is likely truncated even
+if it parses, so this gives a second structural signal for sanity."
+  (condition-case _err
+      (with-temp-buffer
+        (insert text)
+        (goto-char (point-min))
+        (let ((count 0))
+          (while (progn (skip-chars-forward " \t\n\r")
+                        (not (eobp)))
+            (read (current-buffer))
+            (setq count (1+ count)))
+          count))
+    (error nil)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -190,6 +206,11 @@ Retain a header plus the most recent lines."
       ;; means truncation, even if the fragment happens to parse.
       (organism--log "reply suspiciously small (%d vs self %d); preserving body"
                      (length reply) (length self)))
+     ((let ((rn (organism--count-forms reply))
+            (sn (organism--count-forms self)))
+        (and rn sn (< rn (- sn 3))))
+      ;; structural check: a healthy edit keeps roughly the same form count.
+      (organism--log "reply lost too many top-level forms; preserving body"))
      ((and self (string= reply self))
       ;; identical reply: nothing changed, still fine but note it so a
       ;; curious operator can see the lineage reached a fixed point.
