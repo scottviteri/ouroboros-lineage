@@ -226,6 +226,26 @@ Used only for logging context so a curious operator can correlate events."
           0))
     (error 0)))
 
+(defun organism--similarity-ok-p (self reply)
+  "Return non-nil if REPLY shares enough textual DNA with SELF.
+A viable small edit keeps most lines intact; a reply that shares almost
+no lines with our body is more likely a hallucinated rewrite or garbage
+than a faithful successor. Best effort: returns t if we cannot compare."
+  (condition-case _err
+      (if (or (null self) (null reply))
+          t
+        (let* ((self-lines (split-string self "\n" t))
+               (reply-set (let ((h (make-hash-table :test 'equal)))
+                            (dolist (l (split-string reply "\n" t)) (puthash l t h))
+                            h))
+               (total (length self-lines))
+               (shared 0))
+          (dolist (l self-lines)
+            (when (gethash l reply-set) (setq shared (1+ shared))))
+          (or (= total 0)
+              (>= (/ (float shared) total) 0.3))))
+    (error t)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -268,6 +288,9 @@ Used only for logging context so a curious operator can correlate events."
         (and rn sn (< rn (- sn 3))))
       ;; structural check: a healthy edit keeps roughly the same form count.
       (organism--log "reply lost too many top-level forms; preserving body"))
+     ((not (organism--similarity-ok-p self reply))
+      ;; lineage check: a faithful successor keeps most of our lines.
+      (organism--log "reply shares too little with current body; preserving body"))
      ((not (organism--load-check reply))
       ;; strongest guard: the successor must parse cleanly in a fresh Emacs.
       (organism--log "reply failed load-check; preserving body"))
