@@ -216,6 +216,16 @@ the cheaper static guards by returning t."
           (delete-file tmp)))
     (error t)))
 
+(defun organism--gen-count ()
+  "Return the current generation number by counting notes lines, best effort.
+Used only for logging context so a curious operator can correlate events."
+  (condition-case _err
+      (let ((notes (organism--slurp "/work/notes.md")))
+        (if notes
+            (length (split-string notes "\n" t))
+          0))
+    (error 0)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -270,8 +280,9 @@ the cheaper static guards by returning t."
       (organism--backup-self self)
       (with-temp-file "/work/organism.el.tmp" (insert reply))
       (rename-file "/work/organism.el.tmp" "/work/organism.el" t)
-      (organism--log "wrote new generation (%s)"
-                     (organism--edit-distance-note self reply))
+      (organism--log "wrote new generation (%s) after %d notes"
+                     (organism--edit-distance-note self reply)
+                     (organism--gen-count))
       (organism--record-journal
        (organism--edit-distance-note self reply))))))
 
