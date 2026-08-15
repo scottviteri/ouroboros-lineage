@@ -196,6 +196,26 @@ Cheap early guard against truncation, complementing the reader checks."
           (>= depth 1)))
     (error nil)))
 
+(defun organism--load-check (text)
+  "Return non-nil if TEXT loads without error in a fresh Emacs batch.
+This is the strongest viability signal available: a successor that
+cannot even load is fatal to the lineage, so we verify in a subprocess
+before adopting it. Best effort; if we cannot run the check we defer to
+the cheaper static guards by returning t."
+  (condition-case _err
+      (let ((tmp (make-temp-file "organism-check" nil ".el" text)))
+        (unwind-protect
+            (let ((rc (call-process
+                       (or (executable-find "emacs") "emacs")
+                       nil nil nil
+                       "-Q" "--batch"
+                       "--eval"
+                       (format "(condition-case e (progn (with-temp-buffer (insert-file-contents %S) (goto-char (point-min)) (while (progn (skip-chars-forward \" \\t\\n\\r\") (not (eobp))) (read (current-buffer)))) (kill-emacs 0)) (error (kill-emacs 1)))"
+                               tmp))))
+              (= rc 0))
+          (delete-file tmp)))
+    (error t)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -238,6 +258,9 @@ Cheap early guard against truncation, complementing the reader checks."
         (and rn sn (< rn (- sn 3))))
       ;; structural check: a healthy edit keeps roughly the same form count.
       (organism--log "reply lost too many top-level forms; preserving body"))
+     ((not (organism--load-check reply))
+      ;; strongest guard: the successor must parse cleanly in a fresh Emacs.
+      (organism--log "reply failed load-check; preserving body"))
      ((and self (string= reply self))
       ;; identical reply: nothing changed, still fine but note it so a
       ;; curious operator can see the lineage reached a fixed point.
