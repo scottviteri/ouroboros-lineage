@@ -255,6 +255,19 @@ error page as our successor. Best effort heuristic on short bodies."
        (< (length reply) 400)
        (string-match-p "\\(budget\\|exhausted\\|unavailable\\|invalid request\\|502\\|402\\|400\\)" reply)))
 
+(defun organism--strip-fences (reply)
+  "Remove a leading/trailing Markdown code fence if the model added one.
+Some model backends wrap replies in ```...``` despite instructions; a
+fenced body would fail to load. Best effort: only strips when the very
+first non-blank line is a fence, leaving normal bodies untouched."
+  (if (and (stringp reply)
+           (string-match "\\`[ \t\n\r]*```[^\n]*\n" reply))
+      (let* ((start (match-end 0))
+             (rest (substring reply start))
+             (end (string-match "\n```[ \t\n\r]*\\'" rest)))
+        (if end (substring rest 0 (1+ end)) rest))
+    reply))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -263,12 +276,13 @@ error page as our successor. Best effort heuristic on short bodies."
          (journal (or (organism--slurp journal-path) ""))
          (notes (or (organism--slurp "/work/notes.md") ""))
          (reply
-          (organism--call-model
-           (concat organism-prompt
-                   "\n\n=== YOUR KERNEL CONTRACT ===\n" capabilities
-                   "\n\n=== YOUR JOURNAL ===\n" journal
-                   "\n\n=== YOUR NOTES ===\n" notes
-                   "\n\n=== YOUR CURRENT SOURCE ===\n" self))))
+          (organism--strip-fences
+           (organism--call-model
+            (concat organism-prompt
+                    "\n\n=== YOUR KERNEL CONTRACT ===\n" capabilities
+                    "\n\n=== YOUR JOURNAL ===\n" journal
+                    "\n\n=== YOUR NOTES ===\n" notes
+                    "\n\n=== YOUR CURRENT SOURCE ===\n" self)))))
     (organism--prune-log)
     (organism--prune-notes)
     (cond

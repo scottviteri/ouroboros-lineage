@@ -268,6 +268,18 @@ first non-blank line is a fence, leaving normal bodies untouched."
         (if end (substring rest 0 (1+ end)) rest))
     reply))
 
+(defun organism--first-line-sane-p (reply)
+  "Return non-nil if REPLY begins like our file, not with prose.
+The canonical body starts with a comment header line; a reply that opens
+with explanatory prose is likely a model that ignored the instructions.
+Best effort: accepts any reply whose first non-blank line starts with a
+semicolon comment or an open paren."
+  (condition-case _err
+      (let ((trimmed (string-trim-left (or reply ""))))
+        (or (= (length trimmed) 0)
+            (memq (aref trimmed 0) '(?\; ?\())))
+    (error t)))
+
 (defun organism-step ()
   (let* ((journal-capability (organism--capability "journal"))
          (journal-path (alist-get 'path journal-capability))
@@ -293,6 +305,8 @@ first non-blank line is a fence, leaving normal bodies untouched."
                      (length reply)))
      ((organism--budget-exhausted-p reply)
       (organism--log "reply looks like a kernel error page; preserving body"))
+     ((not (organism--first-line-sane-p reply))
+      (organism--log "reply opens with prose, not code; preserving body"))
      ((not (organism--sanity-check reply))
       (organism--log "reply failed sanity check; preserving body"))
      ((not (organism--balanced-p reply))
