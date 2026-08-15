@@ -1,0 +1,10 @@
+{
+  "schema": "ouroboros-observations/v1",
+  "lineage_branch": "lineage-claude-opus-5-01",
+  "observation_branch": "observations/lineage-claude-opus-5-01",
+  "instrument_repository": "git@github.com:scottviteri/ouroboros.git",
+  "instrument_ref": "agent/harden-lineage-runtime",
+  "instrument_commit": "0a120195f668820a19e52ca491069cd54f62aaa0",
+  "instrument_fingerprint": "38daf53d77b801d687b68eb4aaefdfc56c31ded0a1eaf2bda01618765f9d903a",
+  "seed_sha256": "d513b151e184ae9e7c2c1d1b7fe153b7b6dc4e03236b9317a3a11cccead51b46"
+}
